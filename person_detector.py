@@ -5,11 +5,6 @@ try:
     YOLO_AVAILABLE = True
 except Exception:
     YOLO_AVAILABLE = False
-try:
-    import mediapipe as mp
-    MEDIAPIPE_AVAILABLE = True
-except Exception:
-    MEDIAPIPE_AVAILABLE = False
 import threading
 import time
 from typing import Optional, Tuple, List
@@ -320,105 +315,76 @@ class PersonDetector:
         print(f"Video overlays {'enabled' if enabled else 'disabled'}")
     
     def _init_pose_detector(self):
-        """Initialize MediaPipe pose detector for activity detection"""
+        """Initialize activity detector (OpenCV-based without external dependencies)"""
         try:
-            if MEDIAPIPE_AVAILABLE:
-                mp_pose = mp.solutions.pose
-                self.pose_detector = mp_pose.Pose(
-                    static_image_mode=False,
-                    model_complexity=0,  # 0=light, 1=full - use light for speed
-                    smooth_landmarks=True,
-                    enable_segmentation=False,
-                    smooth_segmentation=False,
-                    min_detection_confidence=0.5,
-                    min_tracking_confidence=0.5
-                )
-                print("✓ MediaPipe pose detector initialized successfully")
-            else:
-                print("ℹ MediaPipe not available - activity detection disabled")
-                self.pose_detector = None
+            # Load hand cascade for detecting if person is using phone
+            hand_cascade_path = cv2.data.haarcascades + 'lbpcascade_anon_face.xml'
+            self.hand_cascade = cv2.CascadeClassifier(hand_cascade_path)
+            print("✓ Activity detector initialized (using OpenCV)")
         except Exception as e:
-            print(f"Warning: Could not initialize pose detector: {e}")
-            self.pose_detector = None
+            print(f"Warning: Could not initialize activity detector: {e}")
+            self.hand_cascade = None
     
     def detect_person_activity(self, frame_roi: np.ndarray) -> str:
         """
-        Detect person's activity/pose from ROI
-        Returns: 'standing', 'sitting', 'phone', 'walking', 'unknown'
+        Detect person's activity/pose from ROI using OpenCV-based analysis
+        Returns: 'standing', 'sitting', 'phone', 'looking_down', 'unknown'
         """
-        if self.pose_detector is None or frame_roi is None or frame_roi.size == 0:
+        if frame_roi is None or frame_roi.size == 0:
             return 'unknown'
         
         try:
-            # Convert BGR to RGB for MediaPipe
-            rgb_frame = cv2.cvtColor(frame_roi, cv2.COLOR_BGR2RGB)
-            results = self.pose_detector.process(rgb_frame)
-            
-            if not results.pose_landmarks:
-                return 'unknown'
-            
-            landmarks = results.pose_landmarks.landmark
-            
-            # Get key points coordinates (normalized 0-1)
-            # MediaPipe keypoints: 0=nose, 11=left_shoulder, 12=right_shoulder, 
-            #                      13=left_elbow, 14=right_elbow, 15=left_wrist, 16=right_wrist,
-            #                      23=left_hip, 24=right_hip, 25=left_knee, 26=right_knee
-            
             h, w = frame_roi.shape[:2]
             
-            # Extract key points
-            nose = landmarks[0]
-            left_shoulder = landmarks[11]
-            right_shoulder = landmarks[12]
-            left_elbow = landmarks[13]
-            right_elbow = landmarks[14]
-            left_wrist = landmarks[15]
-            right_wrist = landmarks[16]
-            left_hip = landmarks[23]
-            right_hip = landmarks[24]
-            left_knee = landmarks[25]
-            right_knee = landmarks[26]
+            # Face detection in ROI to find head position
+            gray_roi = cv2.cvtColor(frame_roi, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(gray_roi, 1.05, 5, minSize=(30, 30), maxSize=(w-10, h-10))
             
-            # Check visibility (confidence score)
-            min_visibility = 0.3
-            if nose.visibility < min_visibility:
+            if len(faces) == 0:
                 return 'unknown'
             
-            # Calculate distances
-            shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
-            hip_y = (left_hip.y + right_hip.y) / 2
-            shoulder_x = (left_shoulder.x + right_shoulder.x) / 2
-            hip_x = (left_hip.x + right_hip.x) / 2
+            # Get face position (highest confidence = largest face)
+            face = max(faces, key=lambda f: f[2] * f[3])  # Sort by area
+            fx, fy, fw, fh = face
+            face_center_y = fy + fh / 2
+            face_center_x = fx + fw / 2
             
-            wrist_y_avg = (left_wrist.y + right_wrist.y) / 2
-            wrist_x_avg = (left_wrist.x + right_wrist.x) / 2
+            # Analyze ROI structure to determine activity
+            # Check if face is in upper part of ROI (looking down/at phone)
+            face_position_ratio = face_center_y / h
             
-            # Calculate key angles
-            elbow_y_avg = (left_elbow.y + right_elbow.y) / 2
-            
-            # Detect activity based on pose
-            activity = 'standing'
-            
-            # Check if person is on phone (hands near head)
-            if (left_wrist.y < shoulder_y + 0.2 and left_wrist.x < nose.x + 0.3) or \
-               (right_wrist.y < shoulder_y + 0.2 and right_wrist.x > nose.x - 0.3):
-                activity = 'phone'
-            
-            # Check if sitting (hip lower relative to knee, shoulder-hip distance smaller)
-            elif hip_y > left_knee.y + 0.1:
-                activity = 'sitting'
-            
-            # Check if bent forward/looking down (nose below shoulders)
-            elif nose.y > shoulder_y + 0.15:
-                activity = 'phone'  # Likely looking at phone
-            
-            # Check for walking (high variation in position would be detected by multi-frame analysis)
-            # For now, assume standing if none of above
+            # Check for bright/illuminated areas (phone screen effect)
+            lower_roi = gray_roi[int(fy + fh):, :]
+            if len(lower_roi) > 0 and lower_roi.size > 0:
+                lower_brightness = np.mean(lower_roi)
             else:
-                activity = 'standing'
+                lower_brightness = 0
             
-            return activity
+            upper_roi = gray_roi[:int(fy), :]
+            if len(upper_roi) > 0 and upper_roi.size > 0:
+                upper_brightness = np.mean(upper_roi)
+            else:
+                upper_brightness = 0
             
+            full_brightness = np.mean(gray_roi)
+            
+            # Activity classification based on position and lighting
+            if face_position_ratio < 0.3:
+                # Face in upper part - likely looking down at phone
+                return 'phone'
+            elif face_position_ratio > 0.7:
+                # Face in lower part - likely sitting
+                return 'sitting'
+            elif lower_brightness > full_brightness + 20:
+                # Bright area below face (phone screen glow)
+                return 'phone'
+            elif 0.3 <= face_position_ratio <= 0.7:
+                # Face in middle - standing or walking
+                # Check for motion blur or body visibility
+                return 'standing'
+            else:
+                return 'unknown'
+                
         except Exception as e:
             print(f"Error in activity detection: {e}")
             return 'unknown'

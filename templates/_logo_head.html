@@ -1,0 +1,33 @@
+    <!-- Logo favicon and small head helpers -->
+    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
+    <style>
+        /* Small helper to position the site header logo */
+        .site-header-bar {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            padding: 8px 18px;
+            box-sizing: border-box;
+            gap: 12px;
+        }
+        .site-header-bar img.site-logo-sm {
+            height: 36px;
+            width: auto;
+            display: inline-block;
+        }
+        /* Login card specific smaller size to align with the title */
+        .login-card .card-header h4 img.site-logo-sm {
+            height: 28px;
+            width: auto;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .site-header-title {
+            color: #fff;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+        }
+    </style>

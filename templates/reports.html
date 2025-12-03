@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include '_logo_head.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Model Reports - Smart Attendance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --sidebar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .glass-morphism {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 20px;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .top-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-link-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .glass-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            padding: 2rem;
+            margin: 1rem 0;
+            color: white;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.3s ease;
+            color: white;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .metric-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-glass:focus {
+            color: white;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        
+        .page-title {
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            color: white;
+        }
+        
+        .evaluation-results {
+            display: none;
+        }
+        
+        .report-section {
+            margin: 2rem 0;
+        }
+        
+        .accuracy-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            margin: 0.5rem;
+        }
+        
+        .excellent { background: linear-gradient(45deg, #28a745, #20c997); }
+        .good { background: linear-gradient(45deg, #17a2b8, #20c997); }
+        .fair { background: linear-gradient(45deg, #ffc107, #fd7e14); }
+        .poor { background: linear-gradient(45deg, #dc3545, #e83e8c); }
+        
+        .confusion-matrix {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .report-download {
+            background: rgba(0, 123, 255, 0.2);
+            border: 1px solid rgba(0, 123, 255, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    {% include '_logo_header.html' %}
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <div class="nav-brand">
+                <i class="fas fa-chart-bar" style="color: var(--primary-color); font-size: 24px;"></i>
+                <h3 style="margin: 0;">ML Model Reports</h3>
+            </div>
+            <div class="nav-links">
+                <a href="/dashboard" class="nav-link-btn">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/employees" class="nav-link-btn">
+                    <i class="fas fa-users"></i> Employees
+                </a>
+                <a href="/live" class="nav-link-btn">
+                    <i class="fas fa-video"></i> Live Feed
+                </a>
+                <!-- Register Face link removed per project preference -->
+                <a href="/reports" class="nav-link-btn active">
+                    <i class="fas fa-chart-bar"></i> ML Reports
+                </a>
+                <a href="/settings" class="nav-link-btn">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="/logout" class="nav-link-btn" style="background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <h1 class="page-title text-center text-white mb-4">
+                <i class="fas fa-brain me-3"></i>
+                Machine Learning Model Reports
+            </h1>
+            
+            <!-- Control Panel -->
+            <div class="glass-container">
+                <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-white mb-4">
+                                    <i class="fas fa-cog me-2"></i>
+                                    Model Training & Evaluation
+                                </h3>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <button id="evaluateBtn" class="btn btn-glass w-100">
+                                            <i class="fas fa-chart-line me-2"></i>
+                                            Run Evaluation
+                                        </button>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <button id="trainModelBtn" class="btn btn-glass w-100">
+                                            <i class="fas fa-brain me-2"></i>
+                                            Train Model
+                                        </button>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <button id="optimizeBtn" class="btn btn-glass w-100">
+                                            <i class="fas fa-magic me-2"></i>
+                                            Optimize Parameters
+                                        </button>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <button id="generateReportBtn" class="btn btn-glass w-100">
+                                            <i class="fas fa-file-alt me-2"></i>
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-4">
+                                        <button id="trainingDataBtn" class="btn btn-glass w-100">
+                                            <i class="fas fa-database me-2"></i>
+                                            View Training Data
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button id="uploadTrainingBtn" class="btn btn-glass w-100" data-bs-toggle="modal" data-bs-target="#uploadTrainingModal">
+                                            <i class="fas fa-upload me-2"></i>
+                                            Upload Training Photos
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button id="downloadReportBtn" class="btn btn-glass w-100" style="display: none;">
+                                            <i class="fas fa-download me-2"></i>
+                                            Download Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Upload Training Data Modal -->
+                    <div class="modal fade" id="uploadTrainingModal" tabindex="-1" aria-labelledby="uploadTrainingModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content" style="background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border);">
+                                <div class="modal-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
+                                    <h5 class="modal-title text-white" id="uploadTrainingModalLabel">
+                                        <i class="fas fa-upload me-2"></i>
+                                        Upload Training Photos
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="uploadTrainingForm" enctype="multipart/form-data">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="employeeName" class="form-label text-white">
+                                                    <i class="fas fa-user me-2"></i>Employee Name
+                                                </label>
+                                                <input type="text" class="form-control" id="employeeName" name="employee_name" required
+                                                       style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white;"
+                                                       placeholder="Enter employee full name">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="employeeId" class="form-label text-white">
+                                                    <i class="fas fa-id-badge me-2"></i>Employee ID
+                                                </label>
+                                                <input type="text" class="form-control" id="employeeId" name="employee_id" required
+                                                       style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white;"
+                                                       placeholder="e.g., EMP002">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="trainingPhotos" class="form-label text-white">
+                                                <i class="fas fa-images me-2"></i>Training Photos
+                                            </label>
+                                            <input type="file" class="form-control" id="trainingPhotos" name="photos" multiple accept="image/*" required
+                                                   style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white;">
+                                            <div class="form-text text-light mt-2">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Select 3-10 clear photos of the person's face. Only JPG, JPEG, PNG files are allowed.
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="alert alert-info" style="background: rgba(23, 162, 184, 0.2); border: 1px solid rgba(23, 162, 184, 0.3); color: white;">
+                                                <h6><i class="fas fa-lightbulb me-2"></i>Tips for Best Results:</h6>
+                                                <ul class="mb-0 small">
+                                                    <li>Upload 5-10 photos for best accuracy</li>
+                                                    <li>Include different angles and lighting conditions</li>
+                                                    <li>Ensure the face is clearly visible and well-lit</li>
+                                                    <li>Avoid photos with sunglasses or face masks</li>
+                                                    <li>Only one person should be visible in each photo</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Preview Area -->
+                                        <div id="photoPreview" class="mb-3" style="display: none;">
+                                            <label class="form-label text-white">
+                                                <i class="fas fa-eye me-2"></i>Photo Preview
+                                            </label>
+                                            <div id="previewContainer" class="d-flex flex-wrap gap-2">
+                                                <!-- Preview images will be added here -->
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer" style="border-top: 1px solid rgba(255, 255, 255, 0.2);">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-glass" id="uploadAndTrainBtn">
+                                        <i class="fas fa-upload me-2"></i>
+                                        Upload & Train Model
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div id="loadingSpinner" class="loading-spinner">
+                        <div class="spinner-border text-light mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p>Processing... This may take a few moments.</p>
+                    </div>
+                    
+                    <!-- Evaluation Results -->
+                    <div id="evaluationResults" class="evaluation-results">
+                        <!-- Training Data Information -->
+                        <div class="report-section">
+                            <div class="glass-container">
+                                <h3 class="text-white mb-4">
+                                    <i class="fas fa-database me-2"></i>
+                                    Training Data Information
+                                </h3>
+                                <div id="trainingDataInfo">
+                                    <!-- Training data info will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Model Performance Metrics -->
+                        <div class="report-section">
+                            <div class="glass-container">
+                                <h3 class="text-white mb-4">
+                                    <i class="fas fa-brain me-2"></i>
+                                    Face Recognition Model Performance
+                                </h3>
+                                <div class="row" id="metricsRow">
+                                    <!-- Metrics will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Performance Charts -->
+                        <div class="report-section">
+                            <div class="glass-container">
+                                <h3 class="text-white mb-4">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    Performance Visualization
+                                </h3>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="chart-container">
+                                            <canvas id="metricsChart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="chart-container">
+                                            <canvas id="accuracyHistoryChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- System Health -->
+                        <div class="report-section">
+                            <div class="glass-container">
+                                <h3 class="text-white mb-4">
+                                    <i class="fas fa-heartbeat me-2"></i>
+                                    System Health Metrics
+                                </h3>
+                                <div id="systemHealth">
+                                    <!-- System health metrics will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Model Details -->
+                        <div class="report-section">
+                            <div class="glass-container">
+                                <h3 class="text-white mb-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Model Information
+                                </h3>
+                                <div id="modelInfo">
+                                    <!-- Model information will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        let currentReportFile = null;
+        
+        // Event listeners
+        document.getElementById('evaluateBtn').addEventListener('click', runEvaluation);
+        document.getElementById('trainModelBtn').addEventListener('click', trainModel);
+        document.getElementById('optimizeBtn').addEventListener('click', optimizeParameters);
+        document.getElementById('generateReportBtn').addEventListener('click', generateFullReport);
+        document.getElementById('trainingDataBtn').addEventListener('click', loadTrainingDataInfo);
+        document.getElementById('downloadReportBtn').addEventListener('click', function() {
+            if (currentReportFile) {
+                window.open('/' + currentReportFile, '_blank');
+            }
+        });
+        
+        // Load training data info on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTrainingDataInfo();
+        });
+        
+        function showLoading(message = 'Processing...') {
+            const spinner = document.getElementById('loadingSpinner');
+            spinner.querySelector('p').textContent = message;
+            spinner.style.display = 'block';
+            document.getElementById('evaluationResults').style.display = 'none';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+        
+        function showResults() {
+            document.getElementById('evaluationResults').style.display = 'block';
+        }
+        
+        function resetResults() {
+            destroyAllCharts();
+            document.getElementById('evaluationResults').style.display = 'none';
+        }
+        
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+        
+        async function loadTrainingDataInfo() {
+            try {
+                const response = await fetch('/api/ml/training-data');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayTrainingDataInfo(result.data);
+                } else {
+                    document.getElementById('trainingDataInfo').innerHTML = 
+                        '<div class="alert alert-warning">Failed to load training data information</div>';
+                }
+            } catch (error) {
+                console.error('Error loading training data:', error);
+                document.getElementById('trainingDataInfo').innerHTML = 
+                    '<div class="alert alert-danger">Error loading training data information</div>';
+            }
+        }
+        
+        function displayTrainingDataInfo(data) {
+            const container = document.getElementById('trainingDataInfo');
+            
+            let employeeTable = '';
+            if (data.employee_counts && Object.keys(data.employee_counts).length > 0) {
+                employeeTable = '<h5 class="text-white mt-3">Samples per Employee:</h5><div class="table-responsive"><table class="table table-dark table-striped"><thead><tr><th>Employee</th><th>Samples</th></tr></thead><tbody>';
+                for (const [employee, count] of Object.entries(data.employee_counts)) {
+                    employeeTable += `<tr><td>${employee}</td><td>${count}</td></tr>`;
+                }
+                employeeTable += '</tbody></table></div>';
+            }
+            
+            container.innerHTML = `
+                <div class="row text-white">
+                    <div class="col-md-6">
+                        <div class="metric-card">
+                            <h5>Dataset Overview</h5>
+                            <p><strong>Total Samples:</strong> ${data.total_samples}</p>
+                            <p><strong>Unique Employees:</strong> ${data.unique_employees}</p>
+                            <p><strong>Average Samples per Employee:</strong> ${data.avg_samples_per_employee}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="metric-card">
+                            <h5>Data Quality</h5>
+                            <p><strong>Min Samples per Employee:</strong> ${data.min_samples_per_employee}</p>
+                            <p><strong>Max Samples per Employee:</strong> ${data.max_samples_per_employee}</p>
+                            <p><strong>Recommendation:</strong> ${data.min_samples_per_employee < 3 ? 'Add more samples for better accuracy' : 'Good data distribution'}</p>
+                        </div>
+                    </div>
+                </div>
+                ${employeeTable}
+            `;
+        }
+        
+        async function trainModel() {
+            showLoading('Training face recognition model... This may take a few minutes.');
+            
+            try {
+                const response = await fetch('/api/ml/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Model trained successfully! Accuracy improved.', 'success');
+                    displayEvaluationResults(result.data);
+                    loadTrainingDataInfo(); // Refresh training data
+                } else {
+                    showAlert('Training failed: ' + result.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error training model: ' + error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function optimizeParameters() {
+            showLoading('Optimizing model parameters... This may take several minutes.');
+            
+            try {
+                const response = await fetch('/api/ml/optimize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`Parameters optimized! Best accuracy: ${result.data.best_accuracy}%`, 'success');
+                    displayOptimizationResults(result.data);
+                } else {
+                    showAlert('Optimization failed: ' + result.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error optimizing parameters: ' + error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function displayOptimizationResults(data) {
+            const container = document.getElementById('modelInfo');
+            
+            let resultsTable = '<h5 class="text-white">Parameter Optimization Results:</h5><div class="table-responsive"><table class="table table-dark table-striped"><thead><tr><th>Parameters</th><th>Accuracy</th><th>Avg Confidence</th></tr></thead><tbody>';
+            
+            for (const result of data.all_results) {
+                const paramStr = JSON.stringify(result.parameters).replace(/[{}"]/g, '').replace(/,/g, ', ');
+                resultsTable += `<tr><td>${paramStr}</td><td>${result.accuracy}%</td><td>${result.average_confidence}%</td></tr>`;
+            }
+            resultsTable += '</tbody></table></div>';
+            
+            container.innerHTML = `
+                <div class="row text-white">
+                    <div class="col-md-12">
+                        <div class="metric-card">
+                            <h5>Best Parameters Found</h5>
+                            <p><strong>Best Accuracy:</strong> ${data.best_accuracy}%</p>
+                            <p><strong>Best Parameters:</strong></p>
+                            <ul>
+                                <li>Radius: ${data.best_parameters.radius}</li>
+                                <li>Neighbors: ${data.best_parameters.neighbors}</li>
+                                <li>Grid X: ${data.best_parameters.grid_x}</li>
+                                <li>Grid Y: ${data.best_parameters.grid_y}</li>
+                                <li>Threshold: ${data.best_parameters.threshold}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                ${resultsTable}
+            `;
+            
+            showResults();
+        }
+        
+        async function runEvaluation() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/ml/evaluate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayEvaluationResults(result.data);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error running evaluation: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function generateFullReport() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/ml/report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentReportFile = result.data.report_file;
+                    document.getElementById('downloadReportBtn').style.display = 'inline-block';
+                    displayEvaluationResults(result.data);
+                    alert('Report generated successfully! You can now download it.');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error generating report: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function displayEvaluationResults(data) {
+            // Clean up any existing charts first
+            destroyAllCharts();
+            
+            displayMetrics(data);
+            displaySystemHealth(data.system_health || data.face_recognition?.system_health);
+            displayModelInfo(data);
+            createCharts(data);
+            
+            // Refresh accuracy history chart with new data
+            setTimeout(() => {
+                loadAccuracyHistoryChart();
+            }, 500); // Small delay to ensure other charts are loaded first
+            
+            showResults();
+        }
+        
+        function displayMetrics(data) {
+            const faceData = data.face_recognition || data;
+            const metricsRow = document.getElementById('metricsRow');
+            
+            const metrics = [
+                { label: 'Accuracy', value: faceData.accuracy || 0, icon: 'fa-bullseye' },
+                { label: 'Precision', value: faceData.precision || 0, icon: 'fa-crosshairs' },
+                { label: 'Recall', value: faceData.recall || 0, icon: 'fa-search' },
+                { label: 'F1 Score', value: faceData.f1_score || 0, icon: 'fa-balance-scale' }
+            ];
+            
+            metricsRow.innerHTML = '';
+            
+            metrics.forEach(metric => {
+                const col = document.createElement('div');
+                col.className = 'col-md-3 mb-3';
+                
+                const badge = getAccuracyBadge(metric.value);
+                
+                col.innerHTML = `
+                    <div class="metric-card">
+                        <i class="fas ${metric.icon} fa-2x mb-3" style="color: rgba(255,255,255,0.8);"></i>
+                        <div class="metric-value">${metric.value.toFixed(1)}%</div>
+                        <div class="metric-label">${metric.label}</div>
+                        <div class="mt-2">
+                            <span class="accuracy-badge ${badge}">${getAccuracyText(metric.value)}</span>
+                        </div>
+                    </div>
+                `;
+                
+                metricsRow.appendChild(col);
+            });
+        }
+        
+        function displaySystemHealth(healthData) {
+            if (!healthData) return;
+            
+            const systemHealth = document.getElementById('systemHealth');
+            systemHealth.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="metric-card">
+                            <h5 class="text-white">Database Status</h5>
+                            <p class="text-light">
+                                <i class="fas fa-database me-2"></i>
+                                ${healthData.database_accessible ? 'Connected' : 'Disconnected'}
+                            </p>
+                            <p class="text-light">
+                                <i class="fas fa-users me-2"></i>
+                                Active Employees: ${healthData.active_employees || 0}
+                            </p>
+                            <p class="text-light">
+                                <i class="fas fa-clock me-2"></i>
+                                Attendance Records: ${healthData.total_attendance_records || 0}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="metric-card">
+                            <h5 class="text-white">Model Status</h5>
+                            <p class="text-light">
+                                <i class="fas fa-brain me-2"></i>
+                                Face Recognition: ${healthData.face_recognition_model_trained ? 'Trained' : 'Not Trained'}
+                            </p>
+                            <p class="text-light">
+                                <i class="fas fa-eye me-2"></i>
+                                YOLO Model: ${healthData.yolo_model_loaded ? 'Loaded' : 'Not Loaded'}
+                            </p>
+                            <p class="text-light">
+                                <i class="fas fa-images me-2"></i>
+                                Face Images: ${healthData.face_images_count || 0}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function displayModelInfo(data) {
+            const faceData = data.face_recognition || data;
+            const modelInfo = document.getElementById('modelInfo');
+            
+            modelInfo.innerHTML = `
+                <div class="row text-white">
+                    <div class="col-md-6">
+                        <h5>Training Data</h5>
+                        <p><strong>Total Samples:</strong> ${faceData.total_samples || 0}</p>
+                        <p><strong>Training Samples:</strong> ${faceData.training_samples || 0}</p>
+                        <p><strong>Test Samples:</strong> ${faceData.test_samples || 0}</p>
+                        <p><strong>Unique Employees:</strong> ${faceData.unique_employees || 0}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Model Configuration</h5>
+                        <p><strong>Algorithm:</strong> LBPH Face Recognizer</p>
+                        <p><strong>Person Detection:</strong> YOLOv8n</p>
+                        <p><strong>Confidence Threshold:</strong> 50%</p>
+                        <p><strong>Average Confidence:</strong> ${faceData.average_confidence || 0}%</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Global chart variables to track chart instances
+        let metricsChart = null;
+        let accuracyHistoryChart = null;
+        
+        function createCharts(data) {
+            try {
+                const faceData = data.face_recognition || data;
+                
+                // Destroy existing charts if they exist
+                if (metricsChart) {
+                    metricsChart.destroy();
+                    metricsChart = null;
+                }
+                if (accuracyHistoryChart) {
+                    accuracyHistoryChart.destroy();
+                    accuracyHistoryChart = null;
+                }
+                
+                // Performance Metrics Chart
+                const metricsCtx = document.getElementById('metricsChart');
+                if (metricsCtx) {
+                    try {
+                        metricsChart = new Chart(metricsCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Accuracy', 'Precision', 'Recall', 'F1 Score'],
+                                datasets: [{
+                                    label: 'Performance (%)',
+                                    data: [
+                                        faceData.accuracy || 0,
+                                        faceData.precision || 0,
+                                        faceData.recall || 0,
+                                        faceData.f1_score || 0
+                                    ],
+                                    backgroundColor: [
+                                        'rgba(46, 139, 87, 0.8)',
+                                        'rgba(65, 105, 225, 0.8)',
+                                        'rgba(255, 99, 71, 0.8)',
+                                        'rgba(255, 215, 0, 0.8)'
+                                    ],
+                                    borderColor: [
+                                        'rgba(46, 139, 87, 1)',
+                                        'rgba(65, 105, 225, 1)',
+                                        'rgba(255, 99, 71, 1)',
+                                        'rgba(255, 215, 0, 1)'
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        max: 100
+                                    }
+                                },
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: 'Model Performance Metrics'
+                                    }
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error creating metrics chart:', error);
+                    }
+                }
+                
+                // Accuracy History Chart - fetch real data
+                const historyCtx = document.getElementById('accuracyHistoryChart');
+                if (historyCtx) {
+                    loadAccuracyHistoryChart();
+                }
+            } catch (error) {
+                console.error('Error in createCharts function:', error);
+                showAlert('Error creating charts: ' + error.message, 'warning');
+            }
+        }
+        
+        function getAccuracyBadge(value) {
+            if (value >= 90) return 'excellent';
+            if (value >= 75) return 'good';
+            if (value >= 60) return 'fair';
+            return 'poor';
+        }
+        
+        function getAccuracyText(value) {
+            if (value >= 90) return 'Excellent';
+            if (value >= 75) return 'Good';
+            if (value >= 60) return 'Fair';
+            return 'Needs Improvement';
+        }
+        
+        // Function to clean up all charts
+        function destroyAllCharts() {
+            if (metricsChart) {
+                metricsChart.destroy();
+                metricsChart = null;
+            }
+            if (accuracyHistoryChart) {
+                accuracyHistoryChart.destroy();
+                accuracyHistoryChart = null;
+            }
+        }
+        
+        // Load and display accuracy history chart with real data
+        async function loadAccuracyHistoryChart() {
+            try {
+                const response = await fetch('/api/ml/accuracy-history');
+                const result = await response.json();
+                
+                let historyData = [];
+                let labels = [];
+                let accuracyValues = [];
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    historyData = result.data;
+                    labels = historyData.map((item, index) => {
+                        if (item.timestamp) {
+                            return new Date(item.timestamp).toLocaleDateString();
+                        }
+                        return `Evaluation ${index + 1}`;
+                    });
+                    accuracyValues = historyData.map(item => item.accuracy || 0);
+                } else {
+                    // No history data available, show current accuracy if available
+                    const currentAccuracy = getCurrentAccuracy();
+                    labels = ['Current'];
+                    accuracyValues = [currentAccuracy];
+                }
+                
+                // Create the chart
+                const historyCtx = document.getElementById('accuracyHistoryChart');
+                if (historyCtx) {
+                    try {
+                        // Destroy existing chart if it exists
+                        if (accuracyHistoryChart) {
+                            accuracyHistoryChart.destroy();
+                        }
+                        
+                        accuracyHistoryChart = new Chart(historyCtx, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Accuracy (%)',
+                                    data: accuracyValues,
+                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                    borderWidth: 3,
+                                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 6,
+                                    tension: 0.4,
+                                    fill: true
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        max: 100,
+                                        ticks: {
+                                            callback: function(value) {
+                                                return value + '%';
+                                            }
+                                        },
+                                        grid: {
+                                            color: 'rgba(255, 255, 255, 0.1)'
+                                        }
+                                    },
+                                    x: {
+                                        grid: {
+                                            color: 'rgba(255, 255, 255, 0.1)'
+                                        }
+                                    }
+                                },
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: 'Model Accuracy Over Time',
+                                        color: '#fff',
+                                        font: {
+                                            size: 16,
+                                            weight: 'bold'
+                                        }
+                                    },
+                                    legend: {
+                                        labels: {
+                                            color: '#fff'
+                                        }
+                                    }
+                                },
+                                elements: {
+                                    point: {
+                                        hoverRadius: 8
+                                    }
+                                }
+                            }
+                        });
+                        
+                        console.log('Accuracy history chart created successfully');
+                    } catch (error) {
+                        console.error('Error creating accuracy history chart:', error);
+                        showErrorChart(historyCtx, 'Error loading accuracy history');
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching accuracy history:', error);
+                
+                // Show error chart
+                const historyCtx = document.getElementById('accuracyHistoryChart');
+                if (historyCtx) {
+                    showErrorChart(historyCtx, 'Failed to load accuracy history');
+                }
+            }
+        }
+        
+        // Helper function to get current accuracy from the page
+        function getCurrentAccuracy() {
+            try {
+                const accuracyElement = document.querySelector('.metric-card .metric-value');
+                if (accuracyElement) {
+                    const accuracyText = accuracyElement.textContent;
+                    const match = accuracyText.match(/(\d+(?:\.\d+)?)/);
+                    return match ? parseFloat(match[1]) : 0;
+                }
+                return 0;
+            } catch (error) {
+                console.error('Error getting current accuracy:', error);
+                return 0;
+            }
+        }
+        
+        // Helper function to show error message in chart
+        function showErrorChart(ctx, message) {
+            try {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['No Data'],
+                        datasets: [{
+                            label: 'Accuracy (%)',
+                            data: [0],
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: message,
+                                color: '#ff6384'
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error showing error chart:', error);
+            }
+        }
+        
+        // Clean up charts when page is unloaded
+        window.addEventListener('beforeunload', destroyAllCharts);
+        
+        // Photo Upload Functionality
+        document.getElementById('trainingPhotos').addEventListener('change', function(e) {
+            const files = e.target.files;
+            const previewContainer = document.getElementById('previewContainer');
+            const photoPreview = document.getElementById('photoPreview');
+            
+            previewContainer.innerHTML = '';
+            
+            if (files.length > 0) {
+                photoPreview.style.display = 'block';
+                
+                for (let i = 0; i < Math.min(files.length, 10); i++) {
+                    const file = files[i];
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.style.width = '80px';
+                            img.style.height = '80px';
+                            img.style.objectFit = 'cover';
+                            img.style.borderRadius = '8px';
+                            img.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+                            previewContainer.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            } else {
+                photoPreview.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('uploadAndTrainBtn').addEventListener('click', async function() {
+            const form = document.getElementById('uploadTrainingForm');
+            const formData = new FormData(form);
+            
+            // Validate form
+            const employeeName = document.getElementById('employeeName').value.trim();
+            const employeeId = document.getElementById('employeeId').value.trim();
+            const photos = document.getElementById('trainingPhotos').files;
+            
+            if (!employeeName) {
+                showAlert('Please enter employee name', 'warning');
+                return;
+            }
+            
+            if (!employeeId) {
+                showAlert('Please enter employee ID', 'warning');
+                return;
+            }
+            
+            if (photos.length === 0) {
+                showAlert('Please select at least one photo', 'warning');
+                return;
+            }
+            
+            if (photos.length > 10) {
+                showAlert('Please select maximum 10 photos', 'warning');
+                return;
+            }
+            
+            // Show loading
+            showLoading('Processing photos and training model... This may take a few minutes.');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('uploadTrainingModal'));
+            modal.hide();
+            
+            try {
+                const response = await fetch('/api/ml/upload-training-data', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.data.message, 'success');
+                    
+                    // Reset form
+                    form.reset();
+                    document.getElementById('photoPreview').style.display = 'none';
+                    document.getElementById('previewContainer').innerHTML = '';
+                    
+                    // Refresh training data
+                    await loadTrainingDataInfo();
+                    
+                    // Show results if available
+                    if (result.data.training_result) {
+                        displayEvaluationResults(result.data.training_result);
+                    }
+                } else {
+                    showAlert('Upload failed: ' + result.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error uploading photos: ' + error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        // Auto-generate employee ID based on name
+        document.getElementById('employeeName').addEventListener('input', function(e) {
+            const name = e.target.value.trim();
+            const employeeIdField = document.getElementById('employeeId');
+            
+            if (name && !employeeIdField.value) {
+                // Generate ID from name (first 3 letters + random number)
+                const namePrefix = name.replace(/\s+/g, '').substring(0, 3).toUpperCase();
+                const randomNum = Math.floor(Math.random() * 900) + 100;
+                employeeIdField.value = `EMP${namePrefix}${randomNum}`;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include '_logo_head.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Admin Dashboard - CamCrtlX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #d63384;
+            --secondary-color: #6f42c1;
+            --accent-color: #20c997;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --admin-gradient: linear-gradient(135deg, #d63384 0%, #6f42c1 100%);
+        }
+
+        body {
+            background-image: url('/static/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-color: #0f0f23;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            padding: 2rem;
+            margin: 1rem 0;
+            color: white;
+        }
+
+        .top-nav {
+            background: var(--admin-gradient);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            text-decoration: none;
+            transform: translateY(-2px);
+        }
+
+        .nav-link-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .admin-badge {
+            background: var(--accent-color);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.3s ease;
+            color: white;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .admin-table {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table th {
+            background: var(--admin-gradient);
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        .table td {
+            border-color: rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            vertical-align: middle;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-completed {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn {
+            background: var(--admin-gradient);
+            border: none;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin: 0 2px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.4);
+            color: white;
+        }
+
+        .action-btn.danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .admin-section {
+            margin: 2rem 0;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .action-card {
+            background: var(--admin-gradient);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .action-card:hover {
+            color: white;
+            text-decoration: none;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .welcome-section {
+            background: var(--admin-gradient);
+            color: white;
+            padding: 2rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Removed decorative shimmer for a cleaner admin header */
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin: 0.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    {% include '_logo_header.html' %}
+    <!-- Top Navigation -->
+    <div class="top-nav">
+        <div class="nav-brand">
+            <i class="fas fa-crown" style="font-size: 24px;"></i>
+            <h3 style="margin: 0;">Company Admin Portal</h3>
+            <span class="admin-badge">ADMINISTRATOR</span>
+        </div>
+        <div class="nav-links">
+            <span class="nav-link-btn">
+                <i class="fas fa-user-shield"></i> {{ user.username }}
+            </span>
+            <a href="/logout" class="nav-link-btn" style="background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <h1><i class="fas fa-crown me-3"></i>Welcome, Administrator</h1>
+            <p class="mb-0">Complete system control and advanced analytics at your fingertips</p>
+        </div>
+
+        <!-- System Overview Metrics -->
+        <div class="glass-container">
+            <h3 class="text-white mb-4">
+                <i class="fas fa-chart-pie me-2"></i>
+                System Overview
+            </h3>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="metric-card" onclick="showEmployeeDetails()">
+                        <i class="fas fa-users fa-2x mb-3" style="color: var(--accent-color);"></i>
+                        <div class="metric-value">{{ employees|length }}</div>
+                        <div class="metric-label">Total Employees</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="metric-card" onclick="showActiveDetails()">
+                        <i class="fas fa-clock fa-2x mb-3" style="color: #ffc107;"></i>
+                        <div class="metric-value">{{ summary.active_sessions or 0 }}</div>
+                        <div class="metric-label">Active Sessions</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="metric-card" onclick="showCompletedDetails()">
+                        <i class="fas fa-check-circle fa-2x mb-3" style="color: #28a745;"></i>
+                        <div class="metric-value">{{ summary.completed_sessions or 0 }}</div>
+                        <div class="metric-label">Completed Today</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="metric-card" onclick="showTimeDetails()">
+                        <i class="fas fa-stopwatch fa-2x mb-3" style="color: #dc3545;"></i>
+                        <div class="metric-value">{{ summary.total_time or '0h' }}</div>
+                        <div class="metric-label">Total Hours Today</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Admin Actions -->
+        <div class="glass-container">
+            <h3 class="text-white mb-4">
+                <i class="fas fa-bolt me-2"></i>
+                Quick Administrative Actions
+            </h3>
+            <div class="quick-actions">
+                <a href="/reports" class="action-card">
+                    <i class="fas fa-brain fa-2x mb-3"></i>
+                    <h5>ML Models</h5>
+                    <p>Train & optimize AI models</p>
+                </a>
+                <a href="/employees" class="action-card">
+                    <i class="fas fa-user-plus fa-2x mb-3"></i>
+                    <h5>Add Employee</h5>
+                    <p>Register new staff members</p>
+                </a>
+                <div class="action-card" onclick="exportData()">
+                    <i class="fas fa-download fa-2x mb-3"></i>
+                    <h5>Export Data</h5>
+                    <p>Download system reports</p>
+                </div>
+                <div class="action-card" onclick="showCleanupModal()">
+                    <i class="fas fa-trash-alt fa-2x mb-3" style="color: #ff6b6b;"></i>
+                    <h5>Data Cleanup</h5>
+                    <p>Clean system data & files</p>
+                </div>
+                <div class="action-card" onclick="systemBackup()">
+                    <i class="fas fa-database fa-2x mb-3"></i>
+                    <h5>System Backup</h5>
+                    <p>Create data backup</p>
+                </div>
+                <a href="/settings" class="action-card">
+                    <i class="fas fa-cogs fa-2x mb-3"></i>
+                    <h5>System Settings</h5>
+                    <p>Configure preferences</p>
+                </a>
+                <div class="action-card" onclick="systemAnalytics()">
+                    <i class="fas fa-chart-line fa-2x mb-3"></i>
+                    <h5>Analytics</h5>
+                    <p>View detailed reports</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employee Management Section -->
+        <div class="glass-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="text-white mb-0">
+                    <i class="fas fa-users-cog me-2"></i>
+                    Employee Management
+                </h3>
+                <div>
+                    <button class="action-btn" onclick="addEmployee()">
+                        <i class="fas fa-plus me-2"></i>Add Employee
+                    </button>
+                    <button class="action-btn" onclick="bulkActions()">
+                        <i class="fas fa-tasks me-2"></i>Bulk Actions
+                    </button>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <label class="text-white me-3">Filter by:</label>
+                <button class="filter-btn active" onclick="filterEmployees('all')">All</button>
+                <button class="filter-btn" onclick="filterEmployees('active')">Active Today</button>
+                <button class="filter-btn" onclick="filterEmployees('department')">By Department</button>
+                <button class="filter-btn" onclick="filterEmployees('recent')">Recently Added</button>
+            </div>
+            
+            <div class="admin-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll" onchange="selectAllEmployees()"></th>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Last Seen</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeeTableBody">
+                        {% for employee in employees %}
+                        <tr data-employee-id="{{ employee.employee_id }}">
+                            <td><input type="checkbox" class="employee-select" value="{{ employee.employee_id }}"></td>
+                            <td><strong>{{ employee.employee_id }}</strong></td>
+                            <td>{{ employee.name }}</td>
+                            <td>{{ employee.email or 'Not Set' }}</td>
+                            <td>{{ employee.department or 'Unassigned' }}</td>
+                            <td>
+                                <span class="status-badge status-completed">Active</span>
+                            </td>
+                            <td>Today</td>
+                            <td>
+                                <button class="action-btn" onclick="editEmployee('{{ employee.employee_id }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn" onclick="viewEmployee('{{ employee.employee_id }}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn danger" onclick="deleteEmployee('{{ employee.employee_id }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Today's Activity Sessions -->
+        <div class="glass-container">
+            <h3 class="text-white mb-4">
+                <i class="fas fa-clock me-2"></i>
+                Today's Activity Sessions
+            </h3>
+            
+            {% if sessions %}
+            <div class="admin-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions %}
+                        <tr>
+                            <td><strong>{{ session.employee_id or 'Unknown' }}</strong></td>
+                            <td>{{ session.start_time_formatted or 'N/A' }}</td>
+                            <td>{{ session.end_time_formatted or 'N/A' }}</td>
+                            <td>{{ session.duration_formatted or 'N/A' }}</td>
+                            <td>
+                                {% if session.end_time %}
+                                    <span class="status-badge status-completed">Completed</span>
+                                {% else %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="action-btn" onclick="editSession({{ session.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn danger" onclick="deleteSession({{ session.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-white">
+                <i class="fas fa-clock fa-3x mb-3" style="opacity: 0.5;"></i>
+                <h5>No sessions recorded today</h5>
+                <p>Activity sessions will appear here as employees are detected by the system.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- System Statistics -->
+        <div class="glass-container">
+            <h3 class="text-white mb-4">
+                <i class="fas fa-chart-bar me-2"></i>
+                System Performance & Statistics
+            </h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        // Employee Management Functions
+        function selectAllEmployees() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.employee-select');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        function filterEmployees(filter) {
+            // Remove active class from all filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            // Implement filtering logic here
+            console.log('Filtering by:', filter);
+        }
+
+        function editEmployee(employeeId) {
+            window.location.href = `/edit_employee/${employeeId}`;
+        }
+
+        function viewEmployee(employeeId) {
+            window.location.href = `/employee/${employeeId}`;
+        }
+
+        function deleteEmployee(employeeId) {
+            if (confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
+                fetch(`/api/employees/${employeeId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error deleting employee: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting employee: ' + error.message);
+                });
+            }
+        }
+
+        function addEmployee() {
+            window.location.href = '/add_employee';
+        }
+
+        function bulkActions() {
+            const selected = document.querySelectorAll('.employee-select:checked');
+            if (selected.length === 0) {
+                alert('Please select employees first.');
+                return;
+            }
+            
+            const action = prompt('Enter action (delete/export/update_department):');
+            if (action) {
+                console.log('Bulk action:', action, 'for', selected.length, 'employees');
+            }
+        }
+
+        // Session Management
+        function editSession(sessionId) {
+            const newEndTime = prompt('Enter new end time (HH:MM:SS) or leave empty for ongoing:');
+            if (newEndTime !== null) {
+                // Implement session editing
+                console.log('Editing session:', sessionId, 'End time:', newEndTime);
+            }
+        }
+
+        function deleteSession(sessionId) {
+            if (confirm('Are you sure you want to delete this session?')) {
+                // Implement session deletion
+                console.log('Deleting session:', sessionId);
+            }
+        }
+
+        // Quick Actions
+        function exportData() {
+            window.location.href = '/api/export/all';
+        }
+
+        function systemBackup() {
+            if (confirm('Create a system backup? This may take a few minutes.')) {
+                fetch('/api/backup', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Backup created successfully!');
+                    } else {
+                        alert('Backup failed: ' + data.error);
+                    }
+                });
+            }
+        }
+
+        function systemAnalytics() {
+            window.location.href = '/reports';
+        }
+
+        // Metric Details
+        function showEmployeeDetails() {
+            alert('Total employees in system: {{ employees|length }}');
+        }
+
+        function showActiveDetails() {
+            alert('Active sessions: {{ summary.active_sessions or 0 }}');
+        }
+
+        function showCompletedDetails() {
+            alert('Completed sessions today: {{ summary.completed_sessions or 0 }}');
+        }
+
+        function showTimeDetails() {
+            alert('Total work time today: {{ summary.total_time or "0h" }}');
+        }
+
+        // Data Cleanup Functions
+        function showCleanupModal() {
+            // Create modal HTML
+            const modalHTML = `
+                <div class="modal fade" id="cleanupModal" tabindex="-1" aria-labelledby="cleanupModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+                            <div class="modal-header" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                                <h5 class="modal-title" id="cleanupModalLabel">
+                                    <i class="fas fa-trash-alt me-2" style="color: #ff6b6b;"></i>
+                                    System Data Cleanup
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Warning:</strong> These actions cannot be undone. Please review carefully before proceeding.
+                                </div>
+                                
+                                <div id="systemStatus" class="mb-4">
+                                    <h6>Loading system status...</h6>
+                                </div>
+                                
+                                <h6>Cleanup Options:</h6>
+                                <div class="cleanup-options">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="cleanupType" id="filesOnly" value="files_only" checked>
+                                        <label class="form-check-label" for="filesOnly">
+                                            <strong>Delete Files Only</strong><br>
+                                            <small class="text-muted">Remove face images, photos, recordings (keep database)</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="cleanupType" id="clearData" value="clear_data">
+                                        <label class="form-check-label" for="clearData">
+                                            <strong>Clear Database Data</strong><br>
+                                            <small class="text-muted">Remove all sessions, employees data (keep users and files)</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="cleanupType" id="deleteUsers" value="delete_users">
+                                        <label class="form-check-label" for="deleteUsers">
+                                            <strong>Delete Regular Users</strong><br>
+                                            <small class="text-muted">Remove all non-admin users (keep admin accounts)</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="cleanupType" id="fullCleanup" value="full_cleanup">
+                                        <label class="form-check-label" for="fullCleanup">
+                                            <strong>Full Cleanup</strong><br>
+                                            <small class="text-muted">Delete files + clear data (preserve admin users)</small>
+                                        </label>
+                                    </div>
+                                    <!-- Removed 'Complete Reset' option for safety in admin UI -->
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="border-top: 1px solid rgba(0,0,0,0.1);">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="refreshSystemStatus()">
+                                    <i class="fas fa-sync-alt me-2"></i>Refresh Status
+                                </button>
+                                <button type="button" class="btn btn-danger" onclick="executeCleanup()">
+                                    <i class="fas fa-trash-alt me-2"></i>Execute Cleanup
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if present
+            const existingModal = document.getElementById('cleanupModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Show modal and load status
+            const modal = new bootstrap.Modal(document.getElementById('cleanupModal'));
+            modal.show();
+            
+            // Load initial system status
+            refreshSystemStatus();
+        }
+
+        function refreshSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            statusDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
+            
+            fetch('/admin/system_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let statusHTML = '<div class="row">';
+                    statusHTML += '<div class="col-md-6"><h6>Database Records:</h6><ul class="list-unstyled">';
+                    
+                    for (const [table, count] of Object.entries(data.database)) {
+                        statusHTML += `<li>${table}: <strong>${count}</strong></li>`;
+                    }
+                    
+                    statusHTML += '</ul></div><div class="col-md-6"><h6>File Storage:</h6><ul class="list-unstyled">';
+                    
+                    for (const [path, count] of Object.entries(data.files)) {
+                        const folderName = path.split('/').pop();
+                        statusHTML += `<li>${folderName}: <strong>${count} files</strong></li>`;
+                    }
+                    
+                    statusHTML += `</ul><p><strong>Database Size:</strong> ${data.database_size}</p></div></div>`;
+                    statusDiv.innerHTML = statusHTML;
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger">Error loading status: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                statusDiv.innerHTML = `<div class="alert alert-danger">Error loading status: ${error.message}</div>`;
+            });
+        }
+
+        function executeCleanup() {
+            const selectedType = document.querySelector('input[name="cleanupType"]:checked').value;
+            
+            let confirmMessage = 'Are you sure you want to proceed with this cleanup?';
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            // Show loading state
+            const executeBtn = document.querySelector('[onclick="executeCleanup()"]');
+            const originalText = executeBtn.innerHTML;
+            executeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            executeBtn.disabled = true;
+            
+            fetch('/admin/cleanup_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ type: selectedType })
+            })
+            .then(response => response.json())
+            .then(data => {
+                executeBtn.innerHTML = originalText;
+                executeBtn.disabled = false;
+                
+                if (data.success) {
+                    alert(`Cleanup completed successfully: ${data.message}`);
+                    refreshSystemStatus();
+                    
+                    // If complete reset, redirect to login
+                    // No forced redirect after cleanup; user remains on dashboard
+                } else {
+                    alert(`Cleanup failed: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                executeBtn.innerHTML = originalText;
+                executeBtn.disabled = false;
+                alert(`Error during cleanup: ${error.message}`);
+            });
+        }
+
+        // Update existing functions
+
+        // Initialize Charts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Weekly Activity Chart
+            const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+            new Chart(weeklyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Daily Hours',
+                        data: [8, 7.5, 8.2, 6.8, 8.5, 4.2, 2.1],
+                        borderColor: '#d63384',
+                        backgroundColor: 'rgba(214, 51, 132, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Weekly Activity Hours'
+                        }
+                    }
+                }
+            });
+
+            // Department Distribution Chart
+            const deptCtx = document.getElementById('departmentChart').getContext('2d');
+            new Chart(deptCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Development', 'Design', 'Marketing', 'HR', 'Other'],
+                    datasets: [{
+                        data: [35, 20, 25, 15, 5],
+                        backgroundColor: [
+                            '#d63384',
+                            '#6f42c1',
+                            '#20c997',
+                            '#ffc107',
+                            '#6c757d'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Employee Distribution by Department'
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include '_logo_head.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Feed - Smart Attendance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 20px;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .top-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            color: black;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: black;
+            padding: 8px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: black;
+            transform: translateY(-2px);
+        }
+
+        .nav-link-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-morphism {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .video-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .video-feed {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: black;
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 5px;
+            font-weight: 500;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: black;
+            transform: translateY(-2px);
+        }
+
+        .btn-glass.btn-success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+        }
+
+        .btn-glass.btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+        }
+
+        .btn-glass.btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #d97706);
+        }
+
+        .stats-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 35px;
+            min-height: 400px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.8rem;
+            font-weight: bold;
+            color: #000000;
+            margin-bottom: 8px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .stat-label {
+            color: #000000;
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        .status-offline {
+            background: var(--danger-color);
+            box-shadow: 0 0 10px var(--danger-color);
+        }
+
+        .detection-log {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .log-time {
+            color: #666666;
+            font-size: 0.8rem;
+        }
+
+        .log-message {
+            color: #000000;
+            font-weight: 500;
+        }
+
+        /* Responsive adjustments for expanded stats panel */
+        @media (max-width: 991.98px) {
+            .stats-panel {
+                padding: 25px !important;
+                min-height: 350px !important;
+            }
+
+            .stat-item {
+                padding: 20px !important;
+                margin-bottom: 15px !important;
+            }
+
+            .stat-value {
+                font-size: 2.2rem !important;
+            }
+
+            .stat-label {
+                font-size: 1rem !important;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .stats-panel {
+                padding: 20px !important;
+                min-height: 300px !important;
+            }
+
+            .stat-item {
+                padding: 15px !important;
+                margin-bottom: 12px !important;
+            }
+
+            .stat-value {
+                font-size: 1.8rem !important;
+            }
+
+            .stat-label {
+                font-size: 0.9rem !important;
+            }
+        }
+
+        /* Attendance Notification Styles */
+        .notification-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--success-color);
+            animation: slideInRight 0.3s ease;
+        }
+
+        .notification-item.check-out {
+            border-left-color: var(--warning-color);
+        }
+
+        .notification-item.check-in {
+            border-left-color: var(--success-color);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-time {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .notification-text {
+            color: black;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        /* Glass Effect for Form Controls */
+        .glass-select,
+        .glass-input,
+        .form-control {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 12px !important;
+            color: black !important;
+            padding: 12px 16px !important;
+            backdrop-filter: blur(20px);
+            transition: all 0.3s ease;
+        }
+
+        .glass-select:focus,
+        .glass-input:focus,
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+            color: black !important;
+            outline: none;
+        }
+
+        .glass-select option,
+        .form-control option {
+            background: var(--dark-color);
+            color: black;
+            padding: 10px;
+        }
+
+        .glass-select::placeholder,
+        .glass-input::placeholder,
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+
+        /* Form Label Styling */
+        .form-label {
+            color: black;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        /* Custom Select Arrow */
+        .glass-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='rgba(0,0,0,0.6)' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px 12px;
+            padding-right: 40px !important;
+        }
+
+        /* Video Upload Area Styling */
+        .upload-area {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-area:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .upload-area.dragover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: var(--primary-color);
+            border-style: solid;
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-text {
+            color: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+        }
+
+        .upload-text i {
+            color: var(--primary-color);
+        }
+
+        .upload-text small {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Progress Bar Styling */
+        .progress {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            transition: width 0.3s ease;
+        }
+
+        /* Detected Faces Styling */
+        .nav-pills .nav-link {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+            margin: 0 2px;
+        }
+
+        .nav-pills .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: black;
+        }
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border-color: var(--primary-color);
+            color: black;
+        }
+
+        .faces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .face-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .face-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .face-card img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            margin-bottom: 8px;
+        }
+
+        .face-card.known img {
+            border-color: var(--success-color);
+        }
+
+        .face-card.unknown img {
+            border-color: var(--warning-color);
+        }
+
+        .face-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: black;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .face-confidence {
+            font-size: 0.7rem;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .face-time {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.5);
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 5px;
+            border-radius: 5px;
+        }
+
+        .no-faces-message {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 40px 20px;
+        }
+
+        .no-faces-message i {
+            display: block;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .badge {
+            font-size: 0.7rem;
+        }
+
+        /* Training Interface Styling */
+        .form-check-input {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+        }
+
+        .form-check-label {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .alert {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: black;
+        }
+
+        .alert-info {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: var(--primary-color);
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success-color);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: var(--warning-color);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--danger-color);
+        }
+
+        .training-image-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 5px;
+            margin-top: 10px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .training-image-preview img {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    {% include '_logo_header.html' %}
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <div class="nav-brand">
+                <i class="fas fa-video" style="color: var(--primary-color); font-size: 24px;"></i>
+                <h3 style="margin: 0;">Live Feed Monitor</h3>
+            </div>
+            <div class="nav-links">
+                <a href="/dashboard" class="nav-link-btn">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/employees" class="nav-link-btn">
+                    <i class="fas fa-users"></i> Employees
+                </a>
+                <a href="/live" class="nav-link-btn active">
+                    <i class="fas fa-video"></i> Live Feed
+                </a>
+                <a href="/settings" class="nav-link-btn">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="/logout" class="nav-link-btn" style="background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Main Video Feed -->
+                <div class="col-lg-8">
+                    <div class="video-container">
+                        <h4 class="text-dark mb-4">
+                            <span class="status-indicator status-online"></span>
+                            Live Camera Feed
+                        </h4>
+                        <img id="videoFeed" src="{{ url_for('video_feed') }}" class="video-feed" alt="Live Feed">
+                        
+                        <div class="mt-4">
+                            <!-- Video Source Selection Panel -->
+                            <div class="stats-panel mb-4">
+                                <h5 class="text-dark mb-3">
+                                    <i class="fas fa-video-camera me-2" style="color: var(--primary-color);"></i>
+                                    Video Source Selection
+                                </h5>
+                                
+                                <!-- Video Source Selector -->
+                                <div class="mb-3">
+                                    <label for="videoSource" class="form-label text-dark">
+                                        <i class="fas fa-video me-2"></i>Choose Video Source
+                                    </label>
+                                    <select class="form-control glass-select" id="videoSource" onchange="changeVideoSource()">
+                                        <option value="">Select a video source...</option>
+                                        <option value="0">📹 Default Camera (0)</option>
+                                        <option value="rtsp">🌐 RTSP Stream</option>
+                                        <option value="ip">📡 IP Camera</option>
+                                        <option value="file">📁 Upload Video File</option>
+                                    </select>
+                                </div>
+
+                                <!-- Custom Input for RTSP/IP -->
+                                <div class="mb-3" id="customSourceDiv" style="display: none;">
+                                    <label for="customSource" class="form-label text-dark">
+                                        <i class="fas fa-link me-2"></i>Custom Source URL
+                                    </label>
+                                    <input type="text" class="form-control glass-input" id="customSource" 
+                                           placeholder="Enter RTSP URL or IP Camera URL">
+                                    <button class="btn-glass btn-primary mt-2" onclick="applyCustomSource()">
+                                        <i class="fas fa-check me-2"></i>Apply Source
+                                    </button>
+                                </div>
+
+                                <!-- Video File Upload Section -->
+                                <div class="mb-3" id="videoFileUploadDiv" style="display: none;">
+                                    <label for="videoFile" class="form-label text-dark">
+                                        <i class="fas fa-upload me-2"></i>Upload Video File
+                                    </label>
+                                    <div class="upload-area" id="uploadArea">
+                                        <input type="file" class="form-control glass-input" id="videoFile" 
+                                               accept="video/*,.mp4,.avi,.mov,.mkv,.webm,.quicktime" onchange="handleVideoFileSelect(this)">
+                                        <div class="upload-text">
+                                            <i class="fas fa-cloud-upload-alt" style="font-size: 2.5rem; margin-bottom: 15px; color: var(--primary-color);"></i>
+                                            <p style="font-size: 1.1rem; font-weight: 500;">Click to select or drag and drop a video file</p>
+                                            <small style="opacity: 0.8;">Supported formats: MP4, AVI, MOV, MKV, WebM, etc. (Max 500MB)</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn-glass btn-success mt-3" id="uploadVideoBtn" onclick="uploadVideoFile()" disabled>
+                                        <i class="fas fa-cloud-upload-alt me-2"></i>Upload & Use Video
+                                    </button>
+                                    <div id="uploadProgress" class="progress mt-3" style="display: none;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Camera Controls Panel -->
+                            <div class="control-panel">
+                                <h5 class="text-dark mb-3">
+                                    <i class="fas fa-sliders-h me-2" style="color: var(--secondary-color);"></i>
+                                    Camera Controls
+                                </h5>
+                                
+                                <div class="d-flex justify-content-center flex-wrap">
+                                    <button class="btn-glass btn-success" onclick="startRecording()">
+                                        <i class="fas fa-play-circle me-2"></i>Start Recording
+                                    </button>
+                                    <button class="btn-glass btn-danger" onclick="stopRecording()" disabled>
+                                        <i class="fas fa-stop-circle me-2"></i>Stop Recording
+                                    </button>
+                                    <button class="btn-glass btn-warning" onclick="captureSnapshot()">
+                                        <i class="fas fa-camera me-2"></i>Capture
+                                    </button>
+                                    <button class="btn-glass" onclick="toggleFullscreen()">
+                                        <i class="fas fa-expand me-2"></i>Fullscreen
+                                    </button>
+                                    <button class="btn-glass btn-info" onclick="testCameraConnection()">
+                                        <i class="fas fa-diagnostic me-2"></i>Test Camera
+                                    </button>
+                                    <button class="btn-glass btn-secondary" onclick="refreshVideoFeed()">
+                                        <i class="fas fa-refresh me-2"></i>Refresh Feed
+                                    </button>
+                                    <button class="btn-glass btn-primary" id="overlayToggle" onclick="toggleOverlays()">
+                                        <i class="fas fa-eye me-2"></i>Show Overlays
+                                    </button>
+                                    <button class="btn-glass btn-primary" id="guiToggleBtn" onclick="toggleLiveGui()">
+                                        <i class="fas fa-desktop me-2"></i>Show GUI
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- AI Training Panel -->
+                            <div class="stats-panel mt-4">
+                                <h5 class="text-dark mb-3">
+                                    <i class="fas fa-brain me-2" style="color: var(--warning-color);"></i>
+                                    AI Model Training
+                                </h5>
+                                
+                                <!-- Training Mode Toggle -->
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="trainingMode" onchange="toggleTrainingMode()">
+                                        <label class="form-check-label text-dark" for="trainingMode">
+                                            <i class="fas fa-graduation-cap me-1"></i>Training Mode
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">Enable to capture training data from live feed</small>
+                                </div>
+
+                                <!-- Training Controls -->
+                                <div id="trainingControls" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="trainPersonName" class="form-label text-dark">
+                                            <i class="fas fa-user me-2"></i>Person Name
+                                        </label>
+                                        <input type="text" class="form-control glass-input" id="trainPersonName" 
+                                               placeholder="Enter person's name for training">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label text-dark">
+                                            <i class="fas fa-images me-2"></i>Training Images Captured: <span id="trainingImageCount">0</span>
+                                        </label>
+                                        <div class="progress mb-2">
+                                            <div class="progress-bar bg-warning" id="trainingProgress" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <small class="text-muted">Recommended: 20-50 images from different angles</small>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between flex-wrap mb-3">
+                                        <button class="btn-glass btn-warning" onclick="captureTrainingImage()" id="captureTrainingBtn" disabled>
+                                            <i class="fas fa-camera-retro me-2"></i>Capture Training Image
+                                        </button>
+                                        <button class="btn-glass btn-info" onclick="autoCapture()" id="autoCaptureBtn" disabled>
+                                            <i class="fas fa-magic me-2"></i>Auto Capture (10s)
+                                        </button>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between flex-wrap">
+                                        <button class="btn-glass btn-success" onclick="trainModel()" id="trainModelBtn" disabled>
+                                            <i class="fas fa-cogs me-2"></i>Train Model
+                                        </button>
+                                        <button class="btn-glass btn-danger" onclick="clearTrainingData()" id="clearTrainingBtn" disabled>
+                                            <i class="fas fa-trash me-2"></i>Clear Data
+                                        </button>
+                                    </div>
+
+                                    <!-- Training Status -->
+                                    <div id="trainingStatus" class="mt-3" style="display: none;">
+                                        <div class="alert alert-info" role="alert">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <span id="trainingStatusText">Ready to capture training images</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Model Statistics -->
+                                <div class="mt-3">
+                                    <h6 class="text-dark mb-2">
+                                        <i class="fas fa-chart-line me-2"></i>Model Statistics
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="stat-item">
+                                                <div class="stat-value" id="trainedPersonsCount">0</div>
+                                                <div class="stat-label">Trained Persons</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="stat-item">
+                                                <div class="stat-value" id="modelAccuracy">N/A</div>
+                                                <div class="stat-label">Model Accuracy</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn-glass btn-primary btn-sm w-100 mt-2" onclick="evaluateModel()">
+                                        <i class="fas fa-chart-bar me-2"></i>Evaluate Model Performance
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detected Faces Panel -->
+                        <div class="stats-panel mt-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="text-dark mb-0">
+                                    <i class="fas fa-user-friends me-2" style="color: var(--primary-color);"></i>
+                                    Detected Faces
+                                </h5>
+                                <button class="btn-glass btn-sm" onclick="clearDetectedFaces()">
+                                    <i class="fas fa-trash me-1"></i>Clear
+                                </button>
+                            </div>
+                            
+                            <!-- Tab Navigation -->
+                            <ul class="nav nav-pills nav-justified mb-3" id="faceTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="known-faces-tab" data-bs-toggle="pill" 
+                                            data-bs-target="#known-faces" type="button" role="tab">
+                                        <i class="fas fa-user-check me-1"></i>Known Faces
+                                        <span class="badge bg-success ms-1" id="knownFaceCount">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="unknown-faces-tab" data-bs-toggle="pill" 
+                                            data-bs-target="#unknown-faces" type="button" role="tab">
+                                        <i class="fas fa-user-times me-1"></i>Unknown Faces
+                                        <span class="badge bg-warning ms-1" id="unknownFaceCount">0</span>
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <!-- Tab Content -->
+                            <div class="tab-content" id="faceTabsContent">
+                                <!-- Known Faces Tab -->
+                                <div class="tab-pane fade show active" id="known-faces" role="tabpanel">
+                                    <div id="knownFacesContainer" class="faces-grid">
+                                        <div class="no-faces-message">
+                                            <i class="fas fa-search" style="font-size: 2rem; opacity: 0.5; margin-bottom: 10px;"></i>
+                                            <p>No known faces detected yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Unknown Faces Tab -->
+                                <div class="tab-pane fade" id="unknown-faces" role="tabpanel">
+                                    <div id="unknownFacesContainer" class="faces-grid">
+                                        <div class="no-faces-message">
+                                            <i class="fas fa-user-question" style="font-size: 2rem; opacity: 0.5; margin-bottom: 10px;"></i>
+                                            <p>No unknown faces detected yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats and Detection Log -->
+                <div class="col-lg-4">
+                    <!-- Employee Image Capture -->
+                    <div class="stats-panel mb-4">
+                        <h5 class="text-dark mb-3">
+                            <i class="fas fa-camera-retro me-2"></i>Employee Image Capture
+                        </h5>
+                        <div class="mb-3">
+                            <label for="employeeSelect" class="form-label text-dark">
+                                <i class="fas fa-user me-2"></i>Select Employee
+                            </label>
+                            <select class="form-control glass-select" id="employeeSelect">
+                                <option value="">Select an employee...</option>
+                            </select>
+                        </div>
+                        <button class="btn-glass btn-primary w-100" onclick="captureEmployeeImage()">
+                            <i class="fas fa-camera me-2"></i>Capture Employee Image
+                        </button>
+                    </div>
+
+                    <!-- Live Stats -->
+                    <div class="stats-panel mb-4">
+                        <h5 class="text-dark mb-4" style="font-size: 1.4rem; font-weight: 600; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);">
+                            <i class="fas fa-chart-bar me-2" style="color: var(--primary-color); font-size: 1.2rem;"></i>Live Statistics
+                        </h5>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value" id="detectionCount">0</div>
+                            <div class="stat-label">Detections Today</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value" id="uniquePersons">0</div>
+                            <div class="stat-label">Unique Persons</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value" id="avgConfidence">0%</div>
+                            <div class="stat-label">Avg Confidence</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value text-success" id="cameraStatus">Online</div>
+                            <div class="stat-label">Camera Status</div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Log -->
+                    <div class="detection-log mb-4">
+                        <h5 class="text-dark mb-3">
+                            <i class="fas fa-clock me-2"></i>Recent Attendance
+                        </h5>
+                        <div id="attendanceLogContainer">
+                            <div class="log-item">
+                                <div class="log-time">Loading...</div>
+                                <div class="log-message">Fetching attendance data...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detection Log -->
+                    <div class="detection-log">
+                        <h5 class="text-dark mb-3">
+                            <i class="fas fa-list me-2"></i>Detection Log
+                        </h5>
+                        <div id="detectionLogContainer">
+                            <div class="log-item">
+                                <div class="log-time">2025-01-14 19:07:45</div>
+                                <div class="log-message">System started - Camera initialized</div>
+                            </div>
+                            <div class="log-item">
+                                <div class="log-time">2025-01-14 19:07:46</div>
+                                <div class="log-message">Face detection model loaded</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let isRecording = false;
+        let detectionCount = 0;
+        let uniquePersons = new Set();
+        let isGuiVisible = false;
+
+        // Update video feed timestamp to prevent caching
+        function refreshVideoFeed() {
+            const videoFeed = document.getElementById('videoFeed');
+            const timestamp = new Date().getTime();
+            videoFeed.src = `{{ url_for('video_feed') }}?t=${timestamp}`;
+        }
+
+        // Refresh video feed every 30 seconds
+        setInterval(refreshVideoFeed, 30000);
+
+        // Overlay toggle functionality
+        let overlaysEnabled = true; // Default to enabled
+
+        function toggleOverlays() {
+            overlaysEnabled = !overlaysEnabled;
+            const overlayBtn = document.getElementById('overlayToggle');
+            
+            if (overlaysEnabled) {
+                overlayBtn.innerHTML = '<i class="fas fa-eye-slash me-2"></i>Hide Overlays';
+                overlayBtn.classList.remove('btn-primary');
+                overlayBtn.classList.add('btn-warning');
+                addToLog('Video overlays enabled - showing face names and object detection');
+            } else {
+                overlayBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Show Overlays';
+                overlayBtn.classList.remove('btn-warning');
+                overlayBtn.classList.add('btn-primary');
+                addToLog('Video overlays disabled');
+            }
+            
+            // Send overlay state to backend
+            fetch('/api/toggle_overlays', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ enabled: overlaysEnabled })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Failed to toggle overlays:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling overlays:', error);
+            });
+        }
+
+        // Initialize overlay button state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get initial state from a hidden element or API call
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.settings && typeof data.settings.overlays_enabled !== 'undefined') {
+                        overlaysEnabled = data.settings.overlays_enabled;
+                    }
+                    
+                    const overlayBtn = document.getElementById('overlayToggle');
+                    if (overlaysEnabled) {
+                        overlayBtn.innerHTML = '<i class="fas fa-eye-slash me-2"></i>Hide Overlays';
+                        overlayBtn.classList.remove('btn-primary');
+                        overlayBtn.classList.add('btn-warning');
+                    } else {
+                        overlayBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Show Overlays';
+                        overlayBtn.classList.remove('btn-warning');
+                        overlayBtn.classList.add('btn-primary');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting initial overlay state:', error);
+                });
+        });
+
+        function startRecording() {
+            if (!isRecording) {
+                addToLog('Starting recording...');
+                
+                fetch('/api/start_recording', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        isRecording = true;
+                        addToLog(`✓ Recording started: ${data.filename}`);
+                        document.querySelector('.btn-success').innerHTML = '<i class="fas fa-record-vinyl me-2"></i>Recording...';
+                        document.querySelector('.btn-success').disabled = true;
+                        document.querySelector('.btn-danger').disabled = false;
+                        
+                        // Show recording indicator
+                        showRecordingIndicator();
+                    } else {
+                        addToLog(`✗ Failed to start recording: ${data.message}`);
+                        alert('Failed to start recording:\n' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting recording:', error);
+                    addToLog('✗ Error starting recording');
+                    alert('Error starting recording. Please check console for details.');
+                });
+            }
+        }
+
+        function stopRecording() {
+            if (isRecording) {
+                addToLog('Stopping recording...');
+                
+                fetch('/api/stop_recording', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        isRecording = false;
+                        addToLog(`✓ Recording stopped: ${data.filename} (${data.file_size})`);
+                        document.querySelector('.btn-success').innerHTML = '<i class="fas fa-play-circle me-2"></i>Start Recording';
+                        document.querySelector('.btn-success').disabled = false;
+                        document.querySelector('.btn-danger').disabled = true;
+                        
+                        // Hide recording indicator
+                        hideRecordingIndicator();
+                        
+                        // Show success message
+                        alert(`Recording saved successfully!\n\nFile: ${data.filename}\nSize: ${data.file_size}\n\nRecording saved to static/recordings/ folder.`);
+                    } else {
+                        addToLog(`✗ Failed to stop recording: ${data.message}`);
+                        alert('Failed to stop recording:\n' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error stopping recording:', error);
+                    addToLog('✗ Error stopping recording');
+                    alert('Error stopping recording. Please check console for details.');
+                });
+            }
+        }
+
+        function showRecordingIndicator() {
+            // Create recording indicator if it doesn't exist
+            if (!document.getElementById('recordingIndicator')) {
+                const indicator = document.createElement('div');
+                indicator.id = 'recordingIndicator';
+                indicator.innerHTML = '<i class="fas fa-record-vinyl"></i> RECORDING';
+                indicator.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #dc3545;
+                    color: black;
+                    padding: 10px 15px;
+                    border-radius: 25px;
+                    font-weight: bold;
+                    font-size: 14px;
+                    z-index: 9999;
+                    animation: blink 1s infinite;
+                    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+                `;
+                document.body.appendChild(indicator);
+                
+                // Add blinking animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes blink {
+                        0%, 50% { opacity: 1; }
+                        51%, 100% { opacity: 0.5; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        function hideRecordingIndicator() {
+            const indicator = document.getElementById('recordingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Check recording status on page load
+        function checkRecordingStatus() {
+            fetch('/api/recording_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.is_recording) {
+                    isRecording = true;
+                    document.querySelector('.btn-success').innerHTML = '<i class="fas fa-record-vinyl me-2"></i>Recording...';
+                    document.querySelector('.btn-success').disabled = true;
+                    document.querySelector('.btn-danger').disabled = false;
+                    showRecordingIndicator();
+                    addToLog(`Recording in progress: ${data.filename}`);
+                } else {
+                    document.querySelector('.btn-danger').disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error checking recording status:', error);
+            });
+        }
+
+        function captureSnapshot() {
+            // Add snapshot logic here
+            addToLog('Snapshot captured');
+            
+            // Create a link to download the current frame
+            const canvas = document.createElement('canvas');
+            const video = document.getElementById('videoFeed');
+            canvas.width = video.naturalWidth || video.width;
+            canvas.height = video.naturalHeight || video.height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = `snapshot_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function toggleFullscreen() {
+            const videoFeed = document.getElementById('videoFeed');
+            if (videoFeed.requestFullscreen) {
+                videoFeed.requestFullscreen();
+            } else if (videoFeed.webkitRequestFullscreen) {
+                videoFeed.webkitRequestFullscreen();
+            } else if (videoFeed.msRequestFullscreen) {
+                videoFeed.msRequestFullscreen();
+            }
+        }
+
+        function addToLog(message) {
+            const logContainer = document.getElementById('detectionLogContainer');
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            
+            const now = new Date();
+            const timeString = now.toLocaleString();
+            
+            logItem.innerHTML = `
+                <div class="log-time">${timeString}</div>
+                <div class="log-message">${message}</div>
+            `;
+            
+            logContainer.insertBefore(logItem, logContainer.firstChild);
+            
+            // Keep only the last 20 log items
+            while (logContainer.children.length > 20) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        function updateStats() {
+            // Fetch real statistics from the server
+            fetch('/api/live_stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stats = data.stats;
+                        
+                        // Update detection count
+                        document.getElementById('detectionCount').textContent = stats.detection_count;
+                        
+                        // Update unique persons
+                        document.getElementById('uniquePersons').textContent = stats.unique_persons;
+                        
+                        // Update average confidence
+                        document.getElementById('avgConfidence').textContent = stats.avg_confidence + '%';
+                        
+                        // Update camera status
+                        const cameraStatusElement = document.getElementById('cameraStatus');
+                        cameraStatusElement.textContent = stats.camera_status;
+                        if (stats.camera_status === 'Online') {
+                            cameraStatusElement.className = 'stat-value text-success';
+                        } else {
+                            cameraStatusElement.className = 'stat-value text-danger';
+                        }
+                        
+                        // Update attendance log with recent sessions
+                        updateAttendanceLog(data.recent_sessions);
+                        
+                        console.log('Live stats updated:', stats);
+                    } else {
+                        console.error('Failed to fetch live stats:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching live stats:', error);
+                });
+        }
+
+        function updateAttendanceLog(recentSessions) {
+            const logContainer = document.getElementById('attendanceLogContainer');
+            
+            if (!recentSessions || recentSessions.length === 0) {
+                logContainer.innerHTML = `
+                    <div class="log-item">
+                        <div class="log-time">${new Date().toLocaleTimeString()}</div>
+                        <div class="log-message">No recent attendance records</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Clear existing log items except the first one (header)
+            const existingItems = logContainer.querySelectorAll('.log-item');
+            for (let i = 1; i < existingItems.length; i++) {
+                existingItems[i].remove();
+            }
+            
+            // Add recent sessions
+            recentSessions.slice(0, 10).forEach(session => {
+                const logItem = document.createElement('div');
+                logItem.className = 'log-item';
+                
+                const startTime = new Date(session.start_time);
+                const timeString = startTime.toLocaleTimeString();
+                
+                let message = `Employee ${session.employee_id} checked in`;
+                if (session.end_time) {
+                    const endTime = new Date(session.end_time);
+                    message += ` - checked out (${session.hours ? session.hours.toFixed(1) + 'h' : 'N/A'})`;
+                } else {
+                    message += ' (active)';
+                }
+                
+                logItem.innerHTML = `
+                    <div class="log-time">${timeString}</div>
+                    <div class="log-message">${message}</div>
+                `;
+                
+                logContainer.appendChild(logItem);
+            });
+        }
+
+        // Update statistics every 10 seconds
+        setInterval(updateStats, 10000);
+
+        // Initial stats update
+        updateStats();
+
+        // Check camera status
+        function checkCameraStatus() {
+            const video = document.getElementById('videoFeed');
+            const statusElement = document.getElementById('cameraStatus');
+            
+            video.onerror = function() {
+                statusElement.textContent = 'Offline';
+                statusElement.className = 'stat-value text-danger';
+                addToLog('Camera connection lost');
+            };
+            
+            video.onload = function() {
+                statusElement.textContent = 'Online';
+                statusElement.className = 'stat-value text-success';
+            };
+        }
+
+        // Video Source Management
+        function changeVideoSource() {
+            const select = document.getElementById('videoSource');
+            const customDiv = document.getElementById('customSourceDiv');
+            const uploadDiv = document.getElementById('videoFileUploadDiv');
+            const value = select.value;
+            
+            // Hide all custom divs first
+            customDiv.style.display = 'none';
+            uploadDiv.style.display = 'none';
+            
+            if (value === 'rtsp' || value === 'ip') {
+                customDiv.style.display = 'block';
+                
+                // Set placeholder based on selection
+                const input = document.getElementById('customSource');
+                if (value === 'rtsp') {
+                    input.placeholder = 'rtsp://username:password@ip:port/path';
+                } else if (value === 'ip') {
+                    input.placeholder = 'http://ip:port/video or rtsp://ip:port/stream';
+                }
+            } else if (value === 'file') {
+                uploadDiv.style.display = 'block';
+            } else if (value === '') {
+                // Do nothing, just hide all custom inputs
+            } else {
+                // Directly change source for camera indices
+                updateVideoSource(value);
+            }
+        }
+
+        function applyCustomSource() {
+            const customSource = document.getElementById('customSource').value;
+            if (customSource.trim()) {
+                updateVideoSource(customSource);
+            } else {
+                alert('Please enter a valid source URL or path');
+            }
+        }
+
+        function updateVideoSource(source) {
+            addToLog(`Switching video source to: ${source}`);
+            
+            // Send source change request to backend
+            fetch('/change_video_source', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    source: source
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToLog(`Video source changed successfully`);
+                    // Refresh the video feed after a short delay
+                    setTimeout(() => {
+                        refreshVideoFeed();
+                    }, 1000);
+                } else {
+                    addToLog(`Failed to change video source: ${data.message}`);
+                    alert('Failed to change video source: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addToLog('Error changing video source');
+                alert('Error changing video source');
+            });
+        }
+
+        // Video File Upload Functions
+        function handleVideoFileSelect(input) {
+            const file = input.files[0];
+            const uploadBtn = document.getElementById('uploadVideoBtn');
+            const uploadArea = document.getElementById('uploadArea');
+            
+            if (file) {
+                // Validate file type
+                const validTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/mkv', 'video/webm', 'video/quicktime'];
+                if (!validTypes.includes(file.type)) {
+                    alert('Invalid file type. Please select a video file (MP4, AVI, MOV, MKV, WebM, QuickTime).');
+                    input.value = '';
+                    uploadBtn.disabled = true;
+                    return;
+                }
+                
+                // Check file size (limit to 500MB)
+                const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+                if (file.size > maxSize) {
+                    alert('File too large. Please select a video file smaller than 500MB.');
+                    input.value = '';
+                    uploadBtn.disabled = true;
+                    return;
+                }
+                
+                uploadBtn.disabled = false;
+                uploadArea.style.background = 'rgba(102, 126, 234, 0.2)';
+                uploadArea.style.borderColor = 'var(--primary-color)';
+                
+                const uploadText = uploadArea.querySelector('.upload-text');
+                uploadText.innerHTML = `
+                    <i class="fas fa-video" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p><strong>${file.name}</strong></p>
+                    <small>Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB</small>
+                `;
+                
+                addToLog(`Video file selected: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
+            } else {
+                uploadBtn.disabled = true;
+                resetUploadArea();
+            }
+        }
+
+        function resetUploadArea() {
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.style.background = 'rgba(255, 255, 255, 0.05)';
+            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+            
+            const uploadText = uploadArea.querySelector('.upload-text');
+            uploadText.innerHTML = `
+                <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Click to select or drag and drop a video file</p>
+                <small>Supported formats: MP4, AVI, MOV, MKV, etc.</small>
+            `;
+        }
+
+        function uploadVideoFile() {
+            const fileInput = document.getElementById('videoFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a video file first');
+                return;
+            }
+            
+            const uploadBtn = document.getElementById('uploadVideoBtn');
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = progressDiv.querySelector('.progress-bar');
+            
+            // Disable upload button and show progress
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+            progressDiv.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            addToLog(`Starting upload of ${file.name}...`);
+            
+            // Create FormData for file upload
+            const formData = new FormData();
+            formData.append('video_file', file);
+            
+            // Upload with progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = Math.round(percentComplete) + '%';
+                }
+            });
+            
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            addToLog(`✓ Video uploaded successfully: ${response.filename}`);
+                            
+                            // Switch to the uploaded video source
+                            updateVideoSource(response.file_path);
+                            
+                            // Reset upload interface
+                            fileInput.value = '';
+                            resetUploadArea();
+                            uploadBtn.disabled = true;
+                            uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload & Use Video';
+                            progressDiv.style.display = 'none';
+                            
+                            // Update video source selector
+                            const videoSource = document.getElementById('videoSource');
+                            videoSource.value = '';
+                            
+                            alert(`Video uploaded successfully!\n\nFile: ${response.filename}\nSize: ${response.file_size}\n\nThe live feed will now use your uploaded video.`);
+                        } else {
+                            throw new Error(response.message || 'Upload failed');
+                        }
+                    } catch (error) {
+                        addToLog(`✗ Upload failed: ${error.message}`);
+                        alert('Upload failed: ' + error.message);
+                    }
+                } else {
+                    addToLog(`✗ Upload failed: Server error ${xhr.status}`);
+                    alert(`Upload failed: Server error ${xhr.status}`);
+                }
+                
+                // Reset button state
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload & Use Video';
+                progressDiv.style.display = 'none';
+            });
+            
+            xhr.addEventListener('error', function() {
+                addToLog('✗ Upload failed: Network error');
+                alert('Upload failed: Network error. Please check your connection.');
+                
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload & Use Video';
+                progressDiv.style.display = 'none';
+            });
+            
+            xhr.open('POST', '/api/upload_video');
+            xhr.send(formData);
+        }
+
+        // Drag and drop functionality
+        function setupDragAndDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('videoFile');
+            
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleVideoFileSelect(fileInput);
+                }
+            });
+        }
+
+        // Load available cameras on page load
+        function loadAvailableCameras() {
+            fetch('/api/available_cameras')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.cameras.length > 0) {
+                    const select = document.getElementById('videoSource');
+                    // Clear existing camera options
+                    const options = select.querySelectorAll('option[value]');
+                    options.forEach(option => {
+                        if (option.value.match(/^\d+$/)) {
+                            option.remove();
+                        }
+                    });
+                    
+                    // Add available cameras
+                    data.cameras.forEach(cameraIndex => {
+                        const option = document.createElement('option');
+                        option.value = cameraIndex;
+                        option.textContent = `Camera ${cameraIndex}${cameraIndex === 0 ? ' (Default)' : ''}`;
+                        select.insertBefore(option, select.querySelector('option[value="rtsp"]'));
+                    });
+                    
+                    addToLog(`Found ${data.cameras.length} available camera(s): ${data.cameras.join(', ')}`);
+                } else {
+                    addToLog('No cameras detected - only custom sources available');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading cameras:', error);
+                addToLog('Error detecting available cameras');
+            });
+        }
+
+        function testCameraConnection() {
+            addToLog('Testing camera connection...');
+            
+            // First test available cameras
+            fetch('/api/available_cameras')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.cameras.length > 0) {
+                    addToLog(`✓ Found ${data.cameras.length} potential camera(s): ${data.cameras.join(', ')}`);
+                    
+                    // Test the default camera (0) in detail
+                    return fetch('/api/test_camera', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ camera_index: 0 })
+                    });
+                } else {
+                    throw new Error('No cameras detected');
+                }
+            })
+            .then(response => response.json())
+            .then(testResult => {
+                if (testResult.success) {
+                    addToLog(`✓ Camera test successful - Backend: ${testResult.backend}, Resolution: ${testResult.resolution}`);
+                    alert(`✅ Camera Connection Test PASSED!\n\n` +
+                          `✓ Camera 0 is working properly\n` +
+                          `✓ Backend: ${testResult.backend}\n` +
+                          `✓ Resolution: ${testResult.resolution}\n\n` +
+                          `Your camera should work fine with the live feed.`);
+                } else {
+                    addToLog(`✗ Detailed camera test failed: ${testResult.message}`);
+                    alert(`❌ Camera Connection Test FAILED!\n\n` +
+                          `Issue: ${testResult.message}\n\n` +
+                          `Troubleshooting steps:\n` +
+                          `1. Make sure camera is properly connected\n` +
+                          `2. Close other applications using the camera\n` +
+                          `3. Check camera permissions in Windows Privacy settings\n` +
+                          `4. Try a different USB port\n` +
+                          `5. Restart the browser and try again\n` +
+                          `6. Try selecting a different video source`);
+                }
+            })
+            .catch(error => {
+                console.error('Error testing camera:', error);
+                addToLog('✗ Camera test failed - No cameras available');
+                alert(`❌ Camera Connection Test FAILED!\n\n` +
+                      `No working cameras found.\n\n` +
+                      `Troubleshooting steps:\n` +
+                      `1. Check if camera is physically connected\n` +
+                      `2. Check camera permissions in Windows Privacy settings\n` +
+                      `3. Close other apps that might be using the camera\n` +
+                      `4. Try connecting camera to a different USB port\n` +
+                      `5. Restart your computer and try again\n` +
+                      `6. Check Windows Device Manager for camera issues`);
+            });
+        }
+
+        // Employee Image Capture Functions
+        function loadEmployeesList() {
+            fetch('/api/employees_list')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const select = document.getElementById('employeeSelect');
+                    select.innerHTML = '<option value="">Select an employee...</option>';
+                    
+                    data.employees.forEach(employee => {
+                        const option = document.createElement('option');
+                        option.value = employee.employee_id;
+                        option.textContent = `${employee.name} (${employee.employee_id}) - ${employee.department}`;
+                        select.appendChild(option);
+                    });
+                    
+                    addToLog(`Loaded ${data.employees.length} employees for image capture`);
+                } else {
+                    addToLog('Failed to load employees list');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading employees:', error);
+                addToLog('Error loading employees list');
+            });
+        }
+
+        function captureEmployeeImage() {
+            const select = document.getElementById('employeeSelect');
+            const employeeId = select.value;
+            
+            if (!employeeId) {
+                alert('Please select an employee first');
+                return;
+            }
+            
+            const employeeName = select.options[select.selectedIndex].text.split(' (')[0];
+            
+            addToLog(`Capturing image for ${employeeName}...`);
+            
+            fetch('/api/capture_employee_image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    employee_id: employeeId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToLog(`✓ Image captured for ${employeeName}: ${data.filename}`);
+                    alert(`Image captured successfully for ${employeeName}!\n\nFile: ${data.filename}\n\nThe face recognition system has been updated.`);
+                } else {
+                    addToLog(`✗ Failed to capture image: ${data.message}`);
+                    alert('Failed to capture image: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error capturing image:', error);
+                addToLog('✗ Error capturing employee image');
+                alert('Error capturing employee image');
+            });
+        }
+
+        // Attendance Tracking Functions
+        function loadAttendanceLogs() {
+            fetch('/api/attendance_logs')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const container = document.getElementById('attendanceLogContainer');
+                    container.innerHTML = '';
+                    
+                    if (data.logs.length === 0) {
+                        container.innerHTML = '<div class="log-item"><div class="log-message">No attendance records found</div></div>';
+                        return;
+                    }
+                    
+                    data.logs.forEach(log => {
+                        const logItem = document.createElement('div');
+                        logItem.className = 'log-item';
+                        
+                        const startTime = new Date(log.start_time).toLocaleString();
+                        const status = log.end_time ? 'Check-out' : 'Check-in';
+                        const statusColor = log.end_time ? 'text-warning' : 'text-success';
+                        
+                        logItem.innerHTML = `
+                            <div class="log-time">${startTime}</div>
+                            <div class="log-message">
+                                <span class="${statusColor}">${status}:</span> ${log.employee_name}
+                                ${log.hours ? ` (${log.hours}h)` : ''}
+                            </div>
+                        `;
+                        
+                        container.appendChild(logItem);
+                    });
+                } else {
+                    console.error('Failed to load attendance logs:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading attendance logs:', error);
+            });
+        }
+
+        // Real-time Attendance Notifications
+        let lastNotificationCheck = Date.now();
+        let notificationCount = 0;
+        const maxNotifications = 5;
+
+        function checkForNewAttendance() {
+            fetch('/api/attendance_logs')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.logs.length > 0) {
+                    // Check for recent attendance (last 30 seconds)
+                    const recentLogs = data.logs.filter(log => {
+                        const logTime = new Date(log.start_time).getTime();
+                        return logTime > lastNotificationCheck;
+                    });
+                    
+                    recentLogs.forEach(log => {
+                        showAttendanceNotification(log);
+                    });
+                    
+                    lastNotificationCheck = Date.now();
+                }
+            })
+            .catch(error => {
+                console.error('Error checking attendance:', error);
+            });
+        }
+
+        function showAttendanceNotification(log) {
+            const notificationArea = document.getElementById('attendanceNotifications');
+            const notificationList = document.getElementById('notificationList');
+            
+            // Show notification area if hidden
+            notificationArea.style.display = 'block';
+            
+            // Create notification element
+            const notification = document.createElement('div');
+            const status = log.end_time ? 'check-out' : 'check-in';
+            const action = log.end_time ? 'Checked Out' : 'Checked In';
+            const time = new Date(log.start_time).toLocaleTimeString();
+            
+            notification.className = `notification-item ${status}`;
+            notification.innerHTML = `
+                <div class="notification-time">${time}</div>
+                <div class="notification-text">
+                    <i class="fas fa-user-check me-2"></i>
+                    ${log.employee_name} ${action}
+                    ${log.hours ? ` (${log.hours}h worked)` : ''}
+                </div>
+            `;
+            
+            // Add to top of list
+            notificationList.insertBefore(notification, notificationList.firstChild);
+            
+            // Remove old notifications if too many
+            notificationCount++;
+            if (notificationCount > maxNotifications) {
+                const oldNotifications = notificationList.querySelectorAll('.notification-item');
+                if (oldNotifications.length > maxNotifications) {
+                    oldNotifications[oldNotifications.length - 1].remove();
+                }
+            }
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.opacity = '0';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                            notificationCount--;
+                            
+                            // Hide notification area if empty
+                            if (notificationList.children.length === 0) {
+                                notificationArea.style.display = 'none';
+                            }
+                        }
+                    }, 300);
+                }
+            }, 10000);
+        }
+
+        // Detected Faces Management
+        let detectedFaces = {
+            known: new Map(),
+            unknown: new Map()
+        };
+
+        function addDetectedFace(faceData) {
+            const { name, confidence, image_data, is_known, timestamp } = faceData;
+            // Use consistent ID format for duplicate checking
+            const faceId = `face_${timestamp}_${name}`;
+            
+            const faceInfo = {
+                id: faceId,
+                name: name || 'Unknown',
+                confidence: confidence,
+                image_data: image_data,
+                timestamp: timestamp,
+                time_str: new Date(timestamp).toLocaleTimeString()
+            };
+            
+            if (is_known) {
+                detectedFaces.known.set(faceId, faceInfo);
+                updateKnownFacesDisplay();
+            } else {
+                detectedFaces.unknown.set(faceId, faceInfo);
+                updateUnknownFacesDisplay();
+            }
+            
+            updateFaceCounts();
+        }
+
+        function updateKnownFacesDisplay() {
+            const container = document.getElementById('knownFacesContainer');
+            
+            if (detectedFaces.known.size === 0) {
+                container.innerHTML = `
+                    <div class="no-faces-message">
+                        <i class="fas fa-search" style="font-size: 2rem; opacity: 0.5; margin-bottom: 10px;"></i>
+                        <p>No known faces detected yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const faces = Array.from(detectedFaces.known.values()).sort((a, b) => b.timestamp - a.timestamp);
+            container.innerHTML = faces.map(face => `
+                <div class="face-card known" onclick="showFaceDetails('${face.id}', 'known')">
+                    <div class="face-time">${face.time_str}</div>
+                    <img src="data:image/jpeg;base64,${face.image_data}" alt="${face.name}">
+                    <div class="face-name">${face.name}</div>
+                    <div class="face-confidence">${Math.round(face.confidence)}% confidence</div>
+                </div>
+            `).join('');
+        }
+
+        function updateUnknownFacesDisplay() {
+            const container = document.getElementById('unknownFacesContainer');
+            
+            if (detectedFaces.unknown.size === 0) {
+                container.innerHTML = `
+                    <div class="no-faces-message">
+                        <i class="fas fa-user-question" style="font-size: 2rem; opacity: 0.5; margin-bottom: 10px;"></i>
+                        <p>No unknown faces detected yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const faces = Array.from(detectedFaces.unknown.values()).sort((a, b) => b.timestamp - a.timestamp);
+            container.innerHTML = faces.map(face => `
+                <div class="face-card unknown" onclick="showFaceDetails('${face.id}', 'unknown')">
+                    <div class="face-time">${face.time_str}</div>
+                    <img src="data:image/jpeg;base64,${face.image_data}" alt="Unknown Person">
+                    <div class="face-name">Unknown Person</div>
+                    <div class="face-confidence">${Math.round(face.confidence)}% confidence</div>
+                </div>
+            `).join('');
+        }
+
+        function updateFaceCounts() {
+            document.getElementById('knownFaceCount').textContent = detectedFaces.known.size;
+            document.getElementById('unknownFaceCount').textContent = detectedFaces.unknown.size;
+        }
+
+        function clearDetectedFaces() {
+            if (confirm('Are you sure you want to clear all detected faces?')) {
+                detectedFaces.known.clear();
+                detectedFaces.unknown.clear();
+                updateKnownFacesDisplay();
+                updateUnknownFacesDisplay();
+                updateFaceCounts();
+                addToLog('Detected faces cleared');
+            }
+        }
+
+        function showFaceDetails(faceId, type) {
+            const face = detectedFaces[type].get(faceId);
+            if (!face) return;
+            
+            const modalHtml = `
+                <div class="modal fade" id="faceModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content" style="background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border);">
+                            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <h5 class="modal-title text-dark">
+                                    <i class="fas fa-user me-2"></i>Face Details
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <img src="data:image/jpeg;base64,${face.image_data}" 
+                                     style="width: 200px; height: 200px; object-fit: cover; border-radius: 15px; margin-bottom: 20px; border: 3px solid ${type === 'known' ? 'var(--success-color)' : 'var(--warning-color)'};">
+                                <h4 class="text-dark mb-3">${face.name}</h4>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="stat-item">
+                                                                                       <div class="stat-value" style="font-size: 1.5rem;">${Math.round(face.confidence)}%</div>
+                                            <div class="stat-label">Confidence</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-item">
+                                            <div class="stat-value" style="font-size: 1rem;">${face.time_str}</div>
+                                            <div class="stat-label">Detected At</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                                <button type="button" class="btn-glass" data-bs-dismiss="modal">Close</button>
+                                ${type === 'unknown' ? '<button type="button" class="btn-glass btn-primary" onclick="identifyUnknownFace(\'' + faceId + '\')">Identify Person</button>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('faceModal');
+            if (existingModal) existingModal.remove();
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('faceModal'));
+            modal.show();
+        }
+
+        function identifyUnknownFace(faceId) {
+            const face = detectedFaces.unknown.get(faceId);
+            if (!face) return;
+            
+            const name = prompt('Enter the name for this person:');
+            if (name && name.trim()) {
+                // Here you could send to backend to train the model
+                face.name = name.trim();
+                detectedFaces.known.set(faceId, face);
+                detectedFaces.unknown.delete(faceId);
+                
+                updateKnownFacesDisplay();
+                updateUnknownFacesDisplay();
+                updateFaceCounts();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('faceModal'));
+                modal.hide();
+                
+                addToLog(`Unknown face identified as: ${name}`);
+            }
+        }
+
+        // Simulate face detection updates (replace with real data from backend)
+        function startFaceDetectionUpdates() {
+            setInterval(() => {
+                fetch('/api/get_detected_faces')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.faces) {
+                        data.faces.forEach(face => {
+                            // Check if this face is already displayed to avoid duplicates
+                            const faceId = `face_${face.timestamp}_${face.name}`;
+                            const isKnown = face.is_known;
+                            
+                            if (isKnown && !detectedFaces.known.has(faceId)) {
+                                addDetectedFace(face);
+                            } else if (!isKnown && !detectedFaces.unknown.has(faceId)) {
+                                addDetectedFace(face);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching detected faces:', error);
+                });
+            }, 3000); // Check every 3 seconds for more responsive updates
+            
+            // Clean up old face detections every 30 seconds
+            setInterval(cleanupOldFaces, 30000);
+        }
+
+        function cleanupOldFaces() {
+            const now = Date.now();
+            const maxAge = 5 * 60 * 1000; // 5 minutes
+            
+            // Clean up known faces
+            for (const [faceId, face] of detectedFaces.known) {
+                if (now - face.timestamp > maxAge) {
+                    detectedFaces.known.delete(faceId);
+                }
+            }
+            
+            // Clean up unknown faces
+            for (const [faceId, face] of detectedFaces.unknown) {
+                if (now - face.timestamp > maxAge) {
+                    detectedFaces.unknown.delete(faceId);
+                }
+            }
+            
+            // Update displays if any faces were removed
+            if (detectedFaces.known.size > 0 || detectedFaces.unknown.size > 0) {
+                updateKnownFacesDisplay();
+                updateUnknownFacesDisplay();
+                updateFaceCounts();
+            }
+        }
+
+        // AI Training Functions
+        let trainingMode = false;
+        let trainingData = {
+            personName: '',
+            images: [],
+            maxImages: 50
+        };
+        let autoCaptureInterval = null;
+
+        function toggleTrainingMode() {
+            const checkbox = document.getElementById('trainingMode');
+            const controls = document.getElementById('trainingControls');
+            const status = document.getElementById('trainingStatus');
+            const statusText = document.getElementById('trainingStatusText');
+            
+            trainingMode = checkbox.checked;
+            
+            if (trainingMode) {
+                controls.style.display = 'block';
+                status.style.display = 'block';
+                statusText.textContent = 'Training mode activated. Enter person name and start capturing images.';
+                addToLog('Training mode activated');
+                updateTrainingControls();
+            } else {
+                controls.style.display = 'none';
+                status.style.display = 'none';
+                stopAutoCapture();
+                addToLog('Training mode deactivated');
+            }
+        }
+
+        function updateTrainingControls() {
+            const nameInput = document.getElementById('trainPersonName');
+            const captureBtn = document.getElementById('captureTrainingBtn');
+            const autoBtn = document.getElementById('autoCaptureBtn');
+            const trainBtn = document.getElementById('trainModelBtn');
+            const clearBtn = document.getElementById('clearTrainingBtn');
+            
+            const hasName = nameInput.value.trim().length > 0;
+            const hasImages = trainingData.images.length > 0;
+            const canTrain = hasImages && trainingData.images.length >= 5;
+            
+            captureBtn.disabled = !hasName;
+            autoBtn.disabled = !hasName;
+            trainBtn.disabled = !canTrain;
+            clearBtn.disabled = !hasImages;
+            
+            // Update progress
+            const progress = (trainingData.images.length / trainingData.maxImages) * 100;
+            document.getElementById('trainingProgress').style.width = progress + '%';
+            document.getElementById('trainingImageCount').textContent = trainingData.images.length;
+        }
+
+        document.getElementById('trainPersonName').addEventListener('input', function() {
+            trainingData.personName = this.value.trim();
+            updateTrainingControls();
+        });
+
+        function captureTrainingImage() {
+            const personName = document.getElementById('trainPersonName').value.trim();
+            if (!personName) {
+                alert('Please enter a person name first');
+                return;
+            }
+            
+            addToLog(`Capturing training image for ${personName}...`);
+            
+            fetch('/api/capture_training_image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    person_name: personName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    trainingData.images.push({
+                        filename: data.filename,
+                        timestamp: Date.now()
+                    });
+                    
+                    addToLog(`✓ Training image captured: ${data.filename}`);
+                    updateTrainingControls();
+                    
+                    // Update status
+                    const statusText = document.getElementById('trainingStatusText');
+                    statusText.textContent = `Captured ${trainingData.images.length} images for ${personName}. ${trainingData.images.length >= 5 ? 'Ready to train!' : 'Capture more images from different angles.'}`;
+                    
+                } else {
+                    addToLog(`✗ Failed to capture training image: ${data.message}`);
+                    alert('Failed to capture training image: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error capturing training image:', error);
+                addToLog('✗ Error capturing training image');
+                alert('Error capturing training image');
+            });
+        }
+
+        function autoCapture() {
+            const personName = document.getElementById('trainPersonName').value.trim();
+            if (!personName) {
+                alert('Please enter a person name first');
+                return;
+            }
+            
+            const autoBtn = document.getElementById('autoCaptureBtn');
+            
+            if (autoCaptureInterval) {
+                stopAutoCapture();
+                return;
+            }
+            
+            autoBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Stop Auto (10s)';
+            autoBtn.classList.remove('btn-info');
+            autoBtn.classList.add('btn-danger');
+            
+            addToLog(`Starting auto-capture for ${personName} (every 2 seconds)`);
+            
+            let captureCount = 0;
+            const maxCaptures = 5;
+            
+            autoCaptureInterval = setInterval(() => {
+                if (captureCount >= maxCaptures || trainingData.images.length >= trainingData.maxImages) {
+                    stopAutoCapture();
+                    return;
+                }
+                
+                captureTrainingImage();
+                captureCount++;
+            }, 2000);
+            
+            // Auto-stop after 10 seconds
+            setTimeout(() => {
+                if (autoCaptureInterval) {
+                    stopAutoCapture();
+                }
+            }, 10000);
+        }
+
+        function stopAutoCapture() {
+            if (autoCaptureInterval) {
+                clearInterval(autoCaptureInterval);
+                autoCaptureInterval = null;
+                
+                const autoBtn = document.getElementById('autoCaptureBtn');
+                autoBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Auto Capture (10s)';
+                autoBtn.classList.remove('btn-danger');
+                autoBtn.classList.add('btn-info');
+                
+                addToLog('Auto-capture stopped');
+            }
+        }
+
+        function trainModel() {
+            const personName = document.getElementById('trainPersonName').value.trim();
+            if (!personName || trainingData.images.length < 5) {
+                alert('Please capture at least 5 training images first');
+                return;
+            }
+            
+            const trainBtn = document.getElementById('trainModelBtn');
+            trainBtn.disabled = true;
+            trainBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Training...';
+            
+            addToLog(`Starting model training for ${personName} with ${trainingData.images.length} images...`);
+            
+            fetch('/api/train_model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    person_name: personName,
+                    training_images: trainingData.images
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToLog(`✓ Model training completed successfully!`);
+                    alert(`Model training completed!\n\nPerson: ${personName}\nImages used: ${trainingData.images.length}\nAccuracy: ${data.accuracy || 'N/A'}\n\nThe AI will now recognize ${personName} in the live feed.`);
+                    
+                    // Clear training data
+                    clearTrainingData();
+                    updateModelStats();
+                    
+                } else {
+                    addToLog(`✗ Model training failed: ${data.message}`);
+                    alert('Model training failed: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error training model:', error);
+                addToLog('✗ Error training model');
+                alert('Error training model');
+            })
+            .finally(() => {
+                trainBtn.disabled = false;
+                trainBtn.innerHTML = '<i class="fas fa-cogs me-2"></i>Train Model';
+            });
+        }
+
+        function clearTrainingData() {
+            trainingData.images = [];
+            trainingData.personName = '';
+            document.getElementById('trainPersonName').value = '';
+            updateTrainingControls();
+            
+            const statusText = document.getElementById('trainingStatusText');
+            statusText.textContent = 'Training data cleared. Ready to capture new training images.';
+            
+            addToLog('Training data cleared');
+        }
+
+        function evaluateModel() {
+            addToLog('Evaluating model performance...');
+            
+            fetch('/api/evaluate_model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToLog(`✓ Model evaluation completed. Accuracy: ${data.accuracy}%`);
+                    updateModelStats();
+                    
+                    alert(`Model Performance Report:\n\nOverall Accuracy: ${data.accuracy}%\nTrained Persons: ${data.trained_persons}\nTotal Training Images: ${data.total_images}\n\nDetailed metrics available in the admin dashboard.`);
+                } else {
+                    addToLog(`✗ Model evaluation failed: ${data.message}`);
+                    alert('Model evaluation failed: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error evaluating model:', error);
+                addToLog('✗ Error evaluating model');
+                alert('Error evaluating model');
+            });
+        }
+
+        function updateModelStats() {
+            fetch('/api/model_stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('trainedPersonsCount').textContent = data.trained_persons || 0;
+                    document.getElementById('modelAccuracy').textContent = data.accuracy ? data.accuracy + '%' : 'N/A';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching model stats:', error);
+            });
+        }
+
+        // Initialize
+        checkCameraStatus();
+        addToLog('Live feed interface loaded');
+        loadAvailableCameras();
+        loadEmployeesList();
+        loadAttendanceLogs();
+        setupDragAndDrop();
+        startFaceDetectionUpdates();
+        updateModelStats();
+        
+        // Check recording status on page load
+        checkRecordingStatus();
+        
+        // Auto-refresh attendance logs every 30 seconds
+        setInterval(loadAttendanceLogs, 30000);
+        
+        // Check for real-time attendance notifications every 5 seconds
+        setInterval(checkForNewAttendance, 5000);
+
+        function toggleLiveGui() {
+            isGuiVisible = !isGuiVisible;
+            const guiBtn = document.getElementById('guiToggleBtn');
+            const endpoint = isGuiVisible ? '/start_live_detection_gui' : '/stop_live_detection_gui';
+            
+            fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (isGuiVisible) {
+                        guiBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Hide GUI';
+                        guiBtn.classList.add('btn-success');
+                        guiBtn.classList.remove('btn-primary');
+                        addToLog('Live detection GUI window has been opened.');
+                    } else {
+                        guiBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Show GUI';
+                        guiBtn.classList.remove('btn-success');
+                        guiBtn.classList.add('btn-primary');
+                        addToLog('Live detection GUI window has been closed.');
+                    }
+                } else {
+                    // Revert state on failure
+                    isGuiVisible = !isGuiVisible;
+                    alert(`Error: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                isGuiVisible = !isGuiVisible; // Revert state on failure
+                console.error('Error toggling GUI:', error);
+                alert('An error occurred while trying to toggle the GUI.');
+            });
+        }
+    </script>
+</body>
+</html>

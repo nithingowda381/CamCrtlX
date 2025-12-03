@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include '_logo_head.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Smart Attendance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 20px;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .top-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-link-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-morphism {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .settings-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .settings-section {
+            margin-bottom: 40px;
+        }
+
+        .settings-section h4 {
+            color: white;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .form-label {
+            color: white;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 5px;
+            font-weight: 500;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-glass.btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .btn-glass.btn-success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+        }
+
+        .btn-glass.btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #d97706);
+        }
+
+        .btn-glass.btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+        }
+
+        .profile-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .form-check-label {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .alert-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .system-info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .system-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .system-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .system-info-label {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .system-info-value {
+            color: white;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    {% include '_logo_header.html' %}
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <div class="nav-brand">
+                <i class="fas fa-cog" style="color: var(--primary-color); font-size: 24px;"></i>
+                <h3 style="margin: 0;">System Settings</h3>
+            </div>
+            <div class="nav-links">
+                <a href="/dashboard" class="nav-link-btn">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/employees" class="nav-link-btn">
+                    <i class="fas fa-users"></i> Employees
+                </a>
+                <a href="/live" class="nav-link-btn">
+                    <i class="fas fa-video"></i> Live Feed
+                </a>
+                <!-- Register Face link removed per project preference -->
+                <a href="/settings" class="nav-link-btn active">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="/logout" class="nav-link-btn" style="background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Profile Settings -->
+                <div class="col-lg-6">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <h4><i class="fas fa-user-circle me-2"></i>Profile Settings</h4>
+                            
+                            <div class="text-center mb-4">
+                                <img src="{{ url_for('static', filename='profile_photos/' + (current_user.profile_photo if current_user.profile_photo else 'default-avatar.png')) }}" 
+                                     class="profile-photo" alt="Profile Photo" id="profilePhotoPreview">
+                                <div>
+                                    <input type="file" class="d-none" id="profilePhotoInput" accept="image/*">
+                                    <button type="button" class="btn-glass btn-primary" onclick="document.getElementById('profilePhotoInput').click()">
+                                        <i class="fas fa-camera me-2"></i>Change Photo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <form id="profileForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="firstName" class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="firstName" name="firstName" 
+                                               value="{{ current_user.first_name or '' }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="lastName" class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="lastName" name="lastName" 
+                                               value="{{ current_user.last_name or '' }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           value="{{ current_user.email or '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username" 
+                                           value="{{ current_user.username }}" readonly>
+                                    <small class="text-white-50">Username cannot be changed</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           value="{{ current_user.phone or '' }}">
+                                </div>
+                                
+                                <button type="submit" class="btn-glass btn-success">
+                                    <i class="fas fa-save me-2"></i>Save Profile
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Settings -->
+                <div class="col-lg-6">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <h4><i class="fas fa-shield-alt me-2"></i>Security Settings</h4>
+                            
+                            <form id="passwordForm">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                                </div>
+                                
+                                <button type="submit" class="btn-glass btn-warning">
+                                    <i class="fas fa-key me-2"></i>Change Password
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Application Settings -->
+                <div class="col-lg-6">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <h4><i class="fas fa-sliders-h me-2"></i>Application Settings</h4>
+                            
+                            <form id="appSettingsForm">
+                                <div class="mb-3">
+                                    <label for="timezone" class="form-label">Timezone</label>
+                                    <select class="form-control" id="timezone" name="timezone">
+                                        <option value="UTC">UTC</option>
+                                        <option value="America/New_York">Eastern Time</option>
+                                        <option value="America/Chicago">Central Time</option>
+                                        <option value="America/Denver">Mountain Time</option>
+                                        <option value="America/Los_Angeles">Pacific Time</option>
+                                        <option value="Asia/Kolkata">India Standard Time</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="theme" class="form-label">Theme</label>
+                                    <select class="form-control" id="theme" name="theme">
+                                        <option value="dark">Dark Theme</option>
+                                        <option value="light">Light Theme</option>
+                                        <option value="auto">Auto (System)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="emailNotifications" name="emailNotifications" checked>
+                                        <label class="form-check-label" for="emailNotifications">
+                                            Email Notifications
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="soundAlerts" name="soundAlerts" checked>
+                                        <label class="form-check-label" for="soundAlerts">
+                                            Sound Alerts
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="autoBackup" name="autoBackup" checked>
+                                        <label class="form-check-label" for="autoBackup">
+                                            Automatic Data Backup
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn-glass btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Settings
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Information -->
+                <div class="col-lg-6">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <h4><i class="fas fa-info-circle me-2"></i>System Information</h4>
+                            
+                            <div class="system-info">
+                                <div class="system-info-item">
+                                    <span class="system-info-label">Application Version</span>
+                                    <span class="system-info-value">v2.1.0</span>
+                                </div>
+                                <div class="system-info-item">
+                                    <span class="system-info-label">Database Status</span>
+                                    <span class="system-info-value text-success">
+                                        <i class="fas fa-check-circle me-1"></i>Connected
+                                    </span>
+                                </div>
+                                <div class="system-info-item">
+                                    <span class="system-info-label">Total Employees</span>
+                                    <span class="system-info-value">{{ employee_count or 0 }}</span>
+                                </div>
+                                <div class="system-info-item">
+                                    <span class="system-info-label">Total Records</span>
+                                    <span class="system-info-value">{{ attendance_count or 0 }}</span>
+                                </div>
+                                <div class="system-info-item">
+                                    <span class="system-info-label">Last Backup</span>
+                                    <span class="system-info-value">{{ last_backup or 'Never' }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn-glass btn-success" onclick="exportData()">
+                                    <i class="fas fa-download me-2"></i>Export Data
+                                </button>
+                                <button type="button" class="btn-glass btn-warning" onclick="backupData()">
+                                    <i class="fas fa-backup me-2"></i>Backup Now
+                                </button>
+                                <button type="button" class="btn-glass btn-danger" onclick="clearCache()">
+                                    <i class="fas fa-broom me-2"></i>Clear Cache
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Profile photo preview
+        document.getElementById('profilePhotoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('profilePhotoPreview').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Profile form submission
+        document.getElementById('profileForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('firstName', document.getElementById('firstName').value);
+            formData.append('lastName', document.getElementById('lastName').value);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('phone', document.getElementById('phone').value);
+            
+            const photoFile = document.getElementById('profilePhotoInput').files[0];
+            if (photoFile) {
+                formData.append('profilePhoto', photoFile);
+            }
+            
+            fetch('/api/update_profile', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Profile updated successfully!', 'success');
+                } else {
+                    showAlert('Failed to update profile: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while updating profile', 'danger');
+            });
+        });
+
+        // Password form submission
+        document.getElementById('passwordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                showAlert('New passwords do not match', 'danger');
+                return;
+            }
+            
+            const formData = {
+                currentPassword: document.getElementById('currentPassword').value,
+                newPassword: newPassword
+            };
+            
+            fetch('/api/change_password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Password changed successfully!', 'success');
+                    document.getElementById('passwordForm').reset();
+                } else {
+                    showAlert('Failed to change password: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while changing password', 'danger');
+            });
+        });
+
+        // App settings form submission
+        document.getElementById('appSettingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                timezone: document.getElementById('timezone').value,
+                theme: document.getElementById('theme').value,
+                emailNotifications: document.getElementById('emailNotifications').checked,
+                soundAlerts: document.getElementById('soundAlerts').checked,
+                autoBackup: document.getElementById('autoBackup').checked
+            };
+            
+            fetch('/api/update_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Settings saved successfully!', 'success');
+                } else {
+                    showAlert('Failed to save settings: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while saving settings', 'danger');
+            });
+        });
+
+        function exportData() {
+            window.location.href = '/api/export_data';
+        }
+
+        function backupData() {
+            fetch('/api/backup_data', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Backup created successfully!', 'success');
+                } else {
+                    showAlert('Backup failed: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Backup failed', 'danger');
+            });
+        }
+
+        function clearCache() {
+            if (confirm('Are you sure you want to clear the cache? This may temporarily slow down the application.')) {
+                fetch('/api/clear_cache', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('Cache cleared successfully!', 'success');
+                    } else {
+                        showAlert('Failed to clear cache: ' + data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Failed to clear cache', 'danger');
+                });
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert-glass alert-${type}`;
+            alertDiv.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${message}
+            `;
+            
+            document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.row'));
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Load current settings
+        fetch('/get_settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const settings = data.settings;
+                if (settings.timezone) document.getElementById('timezone').value = settings.timezone;
+                if (settings.theme) document.getElementById('theme').value = settings.theme;
+                if (settings.emailNotifications !== undefined) document.getElementById('emailNotifications').checked = settings.emailNotifications;
+                if (settings.soundAlerts !== undefined) document.getElementById('soundAlerts').checked = settings.soundAlerts;
+                if (settings.autoBackup !== undefined) document.getElementById('autoBackup').checked = settings.autoBackup;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading settings:', error);
+        });
+    </script>
+</body>
+</html>

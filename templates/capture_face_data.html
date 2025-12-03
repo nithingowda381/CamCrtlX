@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include '_logo_head.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Face Capture - CamCrtlX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-image: url('/static/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-color: #0f0f23;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .capture-container {
+            max-width: 800px;
+            width: 100%;
+            padding: 20px;
+            margin: 0 auto;
+        }
+
+        .capture-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .capture-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border: none;
+        }
+
+        .card-header h4 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .card-header p {
+            margin: 8px 0 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .card-body {
+            padding: 40px 30px;
+        }
+
+        .video-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #videoElement {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+            height: auto;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-capture, .btn-stop {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 15px 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            color: white;
+            min-width: 140px;
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .btn-capture:hover, .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .captured-images {
+            margin-top: 30px;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .captured-image {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .captured-image img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .image-counter {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .progress-container {
+            margin-bottom: 20px;
+        }
+
+        .progress {
+            height: 25px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-message {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .status-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .training-links {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .training-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .training-links a:hover {
+            color: #764ba2;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .capture-container {
+                padding: 15px;
+            }
+
+            .card-body {
+                padding: 30px 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-capture, .btn-stop {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include '_logo_header.html' %}
+    <div class="capture-container">
+        <div class="capture-card">
+            <div class="card-header">
+                <h4><i class="fas fa-video fa-1x"></i> Live Face Capture</h4>
+                <p>Capture face images using your webcam</p>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="video-container">
+                    <video id="videoElement" width="640" height="480" autoplay muted></video>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress">
+                        <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%">
+                            <span id="progressText">0 / 5 images captured</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="startBtn" class="btn-capture">
+                        <i class="fas fa-play"></i> Start Capture
+                    </button>
+                    <button id="captureBtn" class="btn-capture" disabled>
+                        <i class="fas fa-camera"></i> Capture Image
+                    </button>
+                    <button id="stopBtn" class="btn-stop" disabled>
+                        <i class="fas fa-stop"></i> Stop & Save
+                    </button>
+                </div>
+
+                <div id="statusMessage" class="status-message status-info">
+                    Click "Start Capture" to begin capturing face images
+                </div>
+
+                <div class="captured-images">
+                    <h5 class="text-center mb-3">Captured Images</h5>
+                    <div id="imagesGrid" class="images-grid">
+                        <!-- Captured images will be added here -->
+                    </div>
+                </div>
+
+                <div class="training-links">
+                    <p class="mt-4">
+                        <a href="{{ url_for('train_face_data') }}">
+                            <i class="fas fa-arrow-left me-1"></i>Back to File Upload
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let video = document.getElementById('videoElement');
+        let startBtn = document.getElementById('startBtn');
+        let captureBtn = document.getElementById('captureBtn');
+        let stopBtn = document.getElementById('stopBtn');
+        let progressBar = document.getElementById('progressBar');
+        let progressText = document.getElementById('progressText');
+        let statusMessage = document.getElementById('statusMessage');
+        let imagesGrid = document.getElementById('imagesGrid');
+
+        let stream = null;
+        let capturedImages = [];
+        let employeeId = '{{ employee_id }}';
+
+        // Start webcam capture
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Check if getUserMedia is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Webcam not supported in this browser');
+                }
+
+                // Request webcam access
+                const constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    }
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                // Set video source
+                video.srcObject = stream;
+
+                // Wait for video to be ready
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+
+                // Enable controls
+                startBtn.disabled = true;
+                captureBtn.disabled = false;
+                stopBtn.disabled = false;
+
+                statusMessage.textContent = 'Webcam started! Click "Capture Image" to take photos.';
+                statusMessage.className = 'status-message status-info';
+
+            } catch (error) {
+                console.error('Error accessing webcam:', error);
+
+                let errorMessage = 'Error accessing webcam. ';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += 'Please allow camera access.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += 'No camera found.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage += 'Camera is already in use.';
+                } else {
+                    errorMessage += 'Please check permissions and try again.';
+                }
+
+                statusMessage.textContent = errorMessage;
+                statusMessage.className = 'status-message';
+                statusMessage.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusMessage.style.color = '#dc2626';
+                statusMessage.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+            }
+        });
+
+        // Capture image from video
+        captureBtn.addEventListener('click', () => {
+            if (capturedImages.length >= 5) {
+                statusMessage.textContent = 'Maximum 5 images reached!';
+                statusMessage.className = 'status-message';
+                statusMessage.style.background = 'rgba(34, 197, 94, 0.1)';
+                statusMessage.style.color = '#16a34a';
+                statusMessage.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+                return;
+            }
+
+            try {
+                // Check if video is ready
+                if (!video.videoWidth || !video.videoHeight) {
+                    statusMessage.textContent = 'Video not ready yet. Please wait...';
+                    statusMessage.className = 'status-message';
+                    statusMessage.style.background = 'rgba(251, 191, 36, 0.1)';
+                    statusMessage.style.color = '#d97706';
+                    statusMessage.style.border = '1px solid rgba(251, 191, 36, 0.2)';
+                    return;
+                }
+
+                // Create canvas and capture image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Set canvas size to video size
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                // Draw video frame to canvas
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convert to JPEG data URL
+                const imageData = canvas.toDataURL('image/jpeg', 0.9);
+                capturedImages.push(imageData);
+
+                // Add image to grid
+                addImageToGrid(imageData, capturedImages.length);
+
+                // Update progress
+                updateProgress();
+
+                if (capturedImages.length >= 5) {
+                    statusMessage.textContent = 'All 5 images captured! Click "Stop & Save" to upload.';
+                    statusMessage.className = 'status-message';
+                    statusMessage.style.background = 'rgba(34, 197, 94, 0.1)';
+                    statusMessage.style.color = '#16a34a';
+                    statusMessage.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+                    captureBtn.disabled = true;
+                } else {
+                    statusMessage.textContent = `${capturedImages.length} / 5 images captured. Continue capturing...`;
+                    statusMessage.className = 'status-message status-info';
+                }
+
+            } catch (error) {
+                console.error('Error capturing image:', error);
+                statusMessage.textContent = 'Error capturing image. Please try again.';
+                statusMessage.className = 'status-message';
+                statusMessage.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusMessage.style.color = '#dc2626';
+                statusMessage.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+            }
+        });
+
+        // Stop capture and save images
+        stopBtn.addEventListener('click', () => {
+            if (capturedImages.length === 0) {
+                statusMessage.textContent = 'No images captured yet!';
+                return;
+            }
+
+            // Stop webcam
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            // Upload images
+            uploadImages();
+
+            startBtn.disabled = false;
+            captureBtn.disabled = true;
+            stopBtn.disabled = true;
+        });
+
+        function addImageToGrid(imageData, index) {
+            const imageDiv = document.createElement('div');
+            imageDiv.className = 'captured-image';
+
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.alt = `Captured image ${index}`;
+
+            const counter = document.createElement('div');
+            counter.className = 'image-counter';
+            counter.textContent = index;
+
+            imageDiv.appendChild(img);
+            imageDiv.appendChild(counter);
+            imagesGrid.appendChild(imageDiv);
+        }
+
+        function updateProgress() {
+            const percentage = (capturedImages.length / 5) * 100;
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = `${capturedImages.length} / 5 images captured`;
+        }
+
+        async function uploadImages() {
+            if (capturedImages.length === 0) {
+                statusMessage.textContent = 'No images to upload. Please capture some images first.';
+                statusMessage.className = 'status-message';
+                statusMessage.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusMessage.style.color = '#dc2626';
+                statusMessage.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                return;
+            }
+
+            try {
+                statusMessage.textContent = 'Uploading images... Please wait.';
+                statusMessage.className = 'status-message';
+                statusMessage.style.background = 'rgba(251, 191, 36, 0.1)';
+                statusMessage.style.color = '#d97706';
+                statusMessage.style.border = '1px solid rgba(251, 191, 36, 0.2)';
+
+                // Disable buttons during upload
+                captureBtn.disabled = true;
+                stopBtn.disabled = true;
+
+                const response = await fetch('/api/capture_face_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        images: capturedImages,
+                        employee_id: employeeId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    statusMessage.textContent = 'Images uploaded successfully! Training will start automatically.';
+                    statusMessage.className = 'status-message';
+                    statusMessage.style.background = 'rgba(34, 197, 94, 0.1)';
+                    statusMessage.style.color = '#16a34a';
+                    statusMessage.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+
+                    // Redirect after success
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                } else {
+                    throw new Error(result.message || 'Upload failed');
+                }
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusMessage.textContent = `Upload failed: ${error.message}. Please try again.`;
+                statusMessage.className = 'status-message';
+                statusMessage.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusMessage.style.color = '#dc2626';
+                statusMessage.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+
+                // Re-enable buttons on error
+                captureBtn.disabled = false;
+                stopBtn.disabled = false;
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

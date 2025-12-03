@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CamCrtlX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --sidebar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .glass-morphism {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 20px;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .top-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-link-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .status-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 20px 20px 0 0;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(31, 38, 135, 0.5);
+        }
+
+        .chart-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            min-height: 400px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+
+        .metric-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        /* Center the top/header area of metric and status cards so icon + live indicator stack centered */
+        .metric-card > .d-flex,
+        .status-card > .d-flex {
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px;
+            text-align: center;
+        }
+
+        /* Ensure the real-time indicator sits centered under the icon */
+        .real-time-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--success-color);
+            font-size: 0.8rem;
+            margin-left: 0;
+        }
+
+        .metric-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .metric-label {
+            color: rgba(255,255,255,0.9);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .real-time-indicator {
+            display: inline-flex;
+            align-items: center;
+            color: var(--success-color);
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .real-time-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success-color);
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .dashboard-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .quick-action-btn {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-action-btn:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .chart-header {
+            color: white;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .last-updated {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.7);
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1050;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 18px;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <div class="nav-brand">
+                <a href="{{ url_for('dashboard') }}" style="display:flex;align-items:center;gap:12px;text-decoration:none;">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="CamCtrlX" class="site-logo-sm" style="height:32px;width:auto;display:inline-block;">
+                    {% set uname = user.username or '' %}
+                    <h3 style="margin: 0;color:inherit;">Hii {{ uname[:1].upper() }}{{ uname[1:] }}</h3>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="/dashboard" class="nav-link-btn active">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/employees" class="nav-link-btn">
+                    <i class="fas fa-users"></i> Employees
+                </a>
+                <a href="/live" class="nav-link-btn">
+                    <i class="fas fa-video"></i> Live Feed
+                </a>
+                <a href="/settings" class="nav-link-btn">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="/logout" class="nav-link-btn" style="background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+                
+                <!-- Modern Glass Morphism Quick Actions -->
+                <div class="dashboard-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="h3 mb-1">Welcome to CamCrtlX</h1>
+                            <p class="mb-0 opacity-75">
+                                <i class="fas fa-clock me-2"></i>
+                                <span id="currentDateTime"></span>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live
+                                </span>
+                            </p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('export_attendance') }}" class="quick-action-btn">
+                                <i class="fas fa-download"></i> Export Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Metrics Cards -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="metric-card pulse">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box" style="background: linear-gradient(135deg, var(--success-color), #059669);">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live
+                                </span>
+                            </div>
+                            <div class="metric-number" id="totalEmployees">-</div>
+                            <div class="metric-label">Total Employees</div>
+                            <div class="last-updated">Updated just now</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="metric-card pulse">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
+                                    <i class="fas fa-user-check"></i>
+                                </div>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live
+                                </span>
+                            </div>
+                            <div class="metric-number" id="presentToday">-</div>
+                            <div class="metric-label">Present Today</div>
+                            <div class="last-updated">Updated just now</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="metric-card pulse">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box" style="background: linear-gradient(135deg, var(--warning-color), #d97706);">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live
+                                </span>
+                            </div>
+                            <div class="metric-number" id="avgHours">-</div>
+                            <div class="metric-label">Avg Hours Today</div>
+                            <div class="last-updated">Updated just now</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="metric-card pulse">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box" style="background: linear-gradient(135deg, var(--info-color), #0891b2);">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live
+                                </span>
+                            </div>
+                            <div class="metric-number" id="attendanceRate">-</div>
+                            <div class="metric-label">Attendance Rate</div>
+                            <div class="last-updated">Updated just now</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Cards -->
+                <div class="row mb-4">
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="status-card">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="icon-box" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="text-white" style="font-size: 0.8rem; opacity: 0.8;">Quick Action</div>
+                                    </div>
+                                </div>
+                                <h5 class="text-white mb-2">Attendance Reports</h5>
+                                <p class="text-white opacity-75 mb-3">View attendance summaries and ML model reports</p>
+                                <a href="{{ url_for('reports_page') }}" class="quick-action-btn">
+                                    <i class="fas fa-file-alt"></i> View Reports
+                                </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="status-card">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                <div class="text-end">
+                                    <div class="text-white" style="font-size: 0.8rem; opacity: 0.8;">Quick Action</div>
+                                </div>
+                            </div>
+                            <h5 class="text-white mb-2">Live Feed</h5>
+                            <p class="text-white opacity-75 mb-3">Monitor real-time activity and attendance</p>
+                            <a href="{{ url_for('live_feed') }}" class="quick-action-btn">
+                                <i class="fas fa-play"></i> View Live Feed
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="status-card">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box" style="background: linear-gradient(135deg, var(--warning-color), #d97706);">
+                                    <i class="fas fa-cogs"></i>
+                                </div>
+                                <div class="text-end">
+                                    <div class="text-white" style="font-size: 0.8rem; opacity: 0.8;">Quick Action</div>
+                                </div>
+                            </div>
+                            <h5 class="text-white mb-2">System Settings</h5>
+                            <p class="text-white opacity-75 mb-3">Configure system preferences and options</p>
+                            <a href="{{ url_for('settings') }}" class="quick-action-btn">
+                                <i class="fas fa-cog"></i> Configure System
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section with Glass Morphism -->
+                <div class="row">
+                    <div class="col-xl-8 col-lg-7 mb-4">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>
+                                    Weekly Attendance Trend
+                                </h5>
+                                <div class="d-flex align-items-center">
+                                    <span class="real-time-indicator me-3">
+                                        <span class="real-time-dot"></span>
+                                        Real-time
+                                    </span>
+                                    <div class="loading-spinner d-none" id="weeklyChartLoader"></div>
+                                </div>
+                            </div>
+                            <div class="chart-area">
+                                <canvas id="weeklyTrendChart"></canvas>
+                            </div>
+                            <div class="last-updated text-center">
+                                Last updated: <span id="weeklyChartUpdate">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-4 col-lg-5 mb-4">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-pie me-2"></i>
+                                    Today's Status
+                                </h5>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live
+                                </span>
+                            </div>
+                            <div class="chart-pie pt-4">
+                                <canvas id="dailyStatusChart"></canvas>
+                            </div>
+                            <div class="last-updated text-center">
+                                Last updated: <span id="statusChartUpdate">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Section -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Recent Activity
+                                </h5>
+                                <span class="real-time-indicator">
+                                    <span class="real-time-dot"></span>
+                                    Live Feed
+                                </span>
+                            </div>
+                            <div id="recentActivity" class="mt-3">
+                                <div class="text-center py-4">
+                                    <div class="loading-spinner"></div>
+                                    <p class="text-white mt-3 mb-0">Loading recent activity...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Dashboard Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables for real-time updates
+        let weeklyChart, statusChart;
+        let updateInterval;
+        let lastUpdateTime = new Date();
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            startRealTimeUpdates();
+            updateDateTime();
+            setInterval(updateDateTime, 1000); // Update time every second
+        });
+
+        // Update current date and time
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        // Initialize dashboard components
+        function initializeDashboard() {
+            initializeCharts();
+            loadMetrics();
+            loadRecentActivity();
+        }
+
+        // Initialize Chart.js charts with modern styling
+        function initializeCharts() {
+            // Weekly Trend Chart
+            const weeklyCtx = document.getElementById('weeklyTrendChart').getContext('2d');
+            weeklyChart = new Chart(weeklyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Hours Worked',
+                        data: [0, 0, 0, 0, 0, 0, 0], // Will be updated with real data
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Status Pie Chart
+            const statusCtx = document.getElementById('dailyStatusChart').getContext('2d');
+            statusChart = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Present', 'Absent'],
+                    datasets: [{
+                        data: [0, 0], // Will be updated with real data
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(239, 68, 68, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(239, 68, 68, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load real-time metrics
+        async function loadMetrics() {
+            try {
+                // Simulate API calls - replace with actual endpoints
+                const metrics = await fetchDashboardMetrics();
+                
+                // Update metric cards with animation
+                updateMetricCard('totalEmployees', metrics.totalEmployees || 0);
+                updateMetricCard('presentToday', metrics.presentToday || 0);
+                updateMetricCard('avgHours', (metrics.avgHours || 0).toFixed(1));
+                updateMetricCard('attendanceRate', (metrics.attendanceRate || 0).toFixed(1) + '%');
+                
+                // Update chart update timestamps
+                const now = new Date().toLocaleTimeString();
+                updateChartTimestamp('weeklyChartUpdate', now);
+                updateChartTimestamp('statusChartUpdate', now);
+                
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+                // Show error state
+                showErrorState();
+            }
+        }
+
+        // Update metric card with animation
+        function updateMetricCard(elementId, value) {
+            const element = document.getElementById(elementId);
+            const spinner = element.querySelector('.loading-spinner');
+            
+            if (spinner) {
+                spinner.remove();
+            }
+            
+            // Animate number change
+            const currentValue = parseInt(element.textContent) || 0;
+            animateNumber(element, currentValue, value);
+        }
+
+        // Animate number changes
+        function animateNumber(element, start, end) {
+            const duration = 1000;
+            const increment = (end - start) / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.round(current * 10) / 10;
+            }, 16);
+        }
+
+        // Update timestamp
+        function updateTimestamp(elementId, time) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = `Updated: ${time}`;
+            }
+        }
+
+        // Update chart timestamp
+        function updateChartTimestamp(elementId, time) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = time;
+            }
+        }
+
+        // Fetch dashboard metrics (real API call)
+        async function fetchDashboardMetrics() {
+            try {
+                const response = await fetch('/api/dashboard/metrics');
+                const result = await response.json();
+                
+                if (result.success) {
+                    return result.data;
+                } else {
+                    throw new Error(result.error || 'Failed to fetch metrics');
+                }
+            } catch (error) {
+                console.error('Error fetching dashboard metrics:', error);
+                // Return fallback data
+                return {
+                    totalEmployees: 0,
+                    presentToday: 0,
+                    avgHours: 0,
+                    attendanceRate: 0
+                };
+            }
+        }
+
+        // Update weekly chart (real API call)
+        async function updateWeeklyChart() {
+            try {
+                // Show loading state
+                showChartLoading('weeklyTrendChart');
+                
+                const response = await fetch('/api/dashboard/weekly');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const weeklyData = result.data;
+                    
+                    // Update chart
+                    weeklyChart.data.labels = weeklyData.labels;
+                    weeklyChart.data.datasets[0].data = weeklyData.hours;
+                    weeklyChart.update('active');
+                    
+                    // Update timestamp
+                    updateChartTimestamp('weeklyChartUpdate', new Date().toLocaleTimeString());
+                } else {
+                    throw new Error(result.error || 'Failed to fetch weekly data');
+                }
+                
+            } catch (error) {
+                console.error('Error updating weekly chart:', error);
+            }
+        }
+
+        // Update status chart (real API call)
+        async function updateStatusChart() {
+            try {
+                showChartLoading('todayStatusChart');
+                
+                const response = await fetch('/api/dashboard/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const statusData = result.data;
+                    
+                    statusChart.data.datasets[0].data = [statusData.present, statusData.absent];
+                    statusChart.update('active');
+                    
+                    updateChartTimestamp('statusChartUpdate', new Date().toLocaleTimeString());
+                } else {
+                    throw new Error(result.error || 'Failed to fetch status data');
+                }
+                
+            } catch (error) {
+                console.error('Error updating status chart:', error);
+            }
+        }
+
+        // Fetch weekly data (removed - now using real API)
+        // async function fetchWeeklyData() { ... }
+
+        // Fetch status data (removed - now using real API)
+        // async function fetchStatusData() { ... }
+
+        // Load recent activity (real API call)
+        async function loadRecentActivity() {
+            try {
+                const response = await fetch('/api/dashboard/activity');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const activityElement = document.getElementById('recentActivity');
+                    const activities = result.data;
+                    
+                    if (activities.length === 0) {
+                        activityElement.innerHTML = '<p class="text-light opacity-75">No recent activity</p>';
+                        return;
+                    }
+                    
+                    let activityHTML = '<div class="activity-list">';
+                    activities.forEach(activity => {
+                        activityHTML += `
+                            <div class="activity-item d-flex align-items-center mb-3 p-2 rounded" style="background: rgba(255,255,255,0.1);">
+                                <div class="activity-icon me-3">
+                                    <i class="fas ${activity.icon} text-${activity.type}"></i>
+                                </div>
+                                <div class="activity-content flex-grow-1">
+                                    <div class="activity-text text-white">${activity.message}</div>
+                                    <div class="activity-time text-light opacity-75 small">${activity.time}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    activityHTML += '</div>';
+                    
+                    activityElement.innerHTML = activityHTML;
+                } else {
+                    throw new Error(result.error || 'Failed to fetch activity');
+                }
+                
+            } catch (error) {
+                console.error('Error loading recent activity:', error);
+                document.getElementById('recentActivity').innerHTML = '<p class="text-light opacity-75">Error loading activity</p>';
+            }
+        }
+
+        // Show chart loading state
+        function showChartLoading(chartId) {
+            // Add loading indicator logic here
+        }
+
+        // Show error state
+        function showErrorState() {
+            document.querySelectorAll('.loading-spinner').forEach(spinner => {
+                spinner.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+            });
+        }
+
+        // Start real-time updates
+        function startRealTimeUpdates() {
+            // Update every 30 seconds
+            updateInterval = setInterval(() => {
+                loadMetrics();
+                updateWeeklyChart();
+                updateStatusChart();
+                loadRecentActivity();
+                lastUpdateTime = new Date();
+            }, 30000);
+        }
+
+        // Refresh dashboard manually
+        function refreshDashboard() {
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('fa-spin');
+            
+            Promise.all([
+                loadMetrics(),
+                updateWeeklyChart(),
+                updateStatusChart(),
+                loadRecentActivity()
+            ]).finally(() => {
+                refreshIcon.classList.remove('fa-spin');
+                lastUpdateTime = new Date();
+            });
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+
+        // Initialize charts with initial data
+        setTimeout(() => {
+            updateWeeklyChart();
+            updateStatusChart();
+        }, 1000);
+    </script>
+</body>
+</html>

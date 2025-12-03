@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Feed - Smart Attendance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 20px;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .top-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-link-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-morphism {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .video-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .video-feed {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 5px;
+            font-weight: 500;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-glass.btn-success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+        }
+
+        .btn-glass.btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+        }
+
+        .btn-glass.btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #d97706);
+        }
+
+        /* Enhanced stats panel for better readability */
+        .stats-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            min-height: 300px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.2s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        .status-offline {
+            background: var(--danger-color);
+            box-shadow: 0 0 10px var(--danger-color);
+        }
+
+        /* File input styling */
+        .form-control[type="file"] {
+            padding: 8px;
+        }
+
+        .form-control[type="file"]::-webkit-file-upload-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .form-control[type="file"]::-webkit-file-upload-button:hover {
+            background: var(--secondary-color);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .detection-log {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            max-height: 400px;
+            overflow-y: auto;
+            min-height: 300px;
+        }
+
+        .log-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--primary-color);
+            transition: background 0.2s ease;
+        }
+
+        .log-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .log-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .log-time {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+        }
+
+        .log-message {
+            color: white;
+            font-weight: 500;
+        }
+
+        /* Responsive adjustments for stats panels */
+        @media (max-width: 991.98px) {
+            .stats-panel {
+                margin-bottom: 20px !important;
+                padding: 20px !important;
+            }
+
+            .stat-item {
+                padding: 15px !important;
+                margin-bottom: 10px !important;
+            }
+
+            .stat-value {
+                font-size: 1.8rem !important;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .stats-panel {
+                padding: 15px !important;
+            }
+
+            .stat-item {
+                padding: 12px !important;
+            }
+
+            .stat-value {
+                font-size: 1.5rem !important;
+            }
+
+            .stat-label {
+                font-size: 0.8rem !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <div class="nav-brand">
+                <i class="fas fa-video" style="color: var(--primary-color); font-size: 24px;"></i>
+                <h3 style="margin: 0;">Live Feed Monitor</h3>
+            </div>
+            <div class="nav-links">
+                <a href="/dashboard" class="nav-link-btn">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/employees" class="nav-link-btn">
+                    <i class="fas fa-users"></i> Employees
+                </a>
+                <a href="/live" class="nav-link-btn active">
+                    <i class="fas fa-video"></i> Live Feed
+                </a>
+                <a href="/settings" class="nav-link-btn">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="/logout" class="nav-link-btn" style="background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row g-4">
+                <!-- Main Video Feed -->
+                <div class="col-lg-5 col-md-4 col-sm-12">
+                    <div class="video-container">
+                        <h4 class="text-white mb-4">
+                            <span class="status-indicator status-online"></span>
+                            Live Camera Feed
+                        </h4>
+                        <img id="videoFeed" src="{{ url_for('video_feed') }}" class="video-feed" alt="Live Feed">
+                        
+                        <div class="mt-4">
+                            <div class="control-panel">
+                                <h5 class="text-white mb-3">Camera Controls</h5>
+                                
+                                <!-- Video Source Selection -->
+                                <div class="mb-3">
+                                    <label for="videoSource" class="form-label text-white">Video Source:</label>
+                                    <select id="videoSource" class="form-select" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
+                                        <option value="webcam">Webcam (Default)</option>
+                                        <option value="0">Camera 0</option>
+                                        <option value="1">Camera 1</option>
+                                        <option value="2">Camera 2</option>
+                                        <option value="rtsp">RTSP Stream</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3" id="rtspInput" style="display: none;">
+                                    <label for="rtspUrl" class="form-label text-white">RTSP URL:</label>
+                                    <input type="text" id="rtspUrl" class="form-control" placeholder="rtsp://username:password@ip:port/stream" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
+                                </div>
+                                
+                                <div class="d-flex justify-content-center flex-wrap">
+                                    <button class="btn-glass" onclick="changeVideoSource()">
+                                        <i class="fas fa-exchange-alt me-2"></i>Change Source
+                                    </button>
+                                    <button class="btn-glass btn-success" onclick="startRecording()">
+                                        <i class="fas fa-play-circle me-2"></i>Start Recording
+                                    </button>
+                                    <button class="btn-glass btn-danger" onclick="stopRecording()">
+                                        <i class="fas fa-stop-circle me-2"></i>Stop Recording
+                                    </button>
+                                    <button class="btn-glass btn-warning" onclick="captureSnapshot()">
+                                        <i class="fas fa-camera me-2"></i>Capture
+                                    </button>
+                                    <button class="btn-glass" onclick="toggleFullscreen()">
+                                        <i class="fas fa-expand me-2"></i>Fullscreen
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Video Analysis Panel -->
+                <div class="col-lg-3 col-md-3 col-sm-4">
+                    <div class="stats-panel mb-4">
+                        <h5 class="text-white mb-3">
+                            <i class="fas fa-brain me-2"></i>AI Video Analysis
+                        </h5>
+
+                        <!-- Video Upload -->
+                        <div class="mb-3">
+                            <label for="videoUpload" class="form-label text-white">Upload Video for Analysis:</label>
+                            <input type="file" id="videoUpload" class="form-control" accept="video/*" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
+                            <div class="form-text text-white-50">Supported formats: MP4, AVI, MOV, MKV, WebM</div>
+                        </div>
+
+                        <div class="d-flex justify-content-center mb-3">
+                            <button class="btn-glass btn-primary" onclick="analyzeVideo()">
+                                <i class="fas fa-search me-2"></i>Analyze Video
+                            </button>
+                        </div>
+
+                        <!-- Analysis Status -->
+                        <div id="analysisStatus" class="mb-3" style="display: none;">
+                            <div class="text-white mb-2">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Analyzing video...
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Results -->
+                        <div id="analysisResults" style="display: none;">
+                            <h6 class="text-white mb-3">Analysis Results</h6>
+
+                            <!-- Objects Detected -->
+                            <div class="mb-3">
+                                <h6 class="text-white-50">Objects Detected:</h6>
+                                <div id="objectsList" class="small text-white">
+                                    <!-- Objects will be listed here -->
+                                </div>
+                            </div>
+
+                            <!-- Actions/Labels Detected -->
+                            <div class="mb-3">
+                                <h6 class="text-white-50">Actions & Scenes:</h6>
+                                <div id="labelsList" class="small text-white">
+                                    <!-- Labels will be listed here -->
+                                </div>
+                            </div>
+
+                            <!-- Statistics -->
+                            <div class="mb-3">
+                                <h6 class="text-white-50">Video Statistics:</h6>
+                                <div id="videoStats" class="small text-white">
+                                    <!-- Stats will be shown here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                <!-- Stats and Detection Log -->
+                <div class="col-lg-4 col-md-5 col-sm-8">
+                    <!-- Live Stats -->
+                    <div class="stats-panel mb-4">
+                        <h5 class="text-white mb-3">
+                            <i class="fas fa-chart-bar me-2"></i>Live Statistics
+                        </h5>
+
+                        <div class="stat-item">
+                            <div class="stat-value" id="detectionCount">0</div>
+                            <div class="stat-label">Detections Today</div>
+                        </div>
+
+                        <div class="stat-item">
+                            <div class="stat-value" id="uniquePersons">0</div>
+                            <div class="stat-label">Unique Persons</div>
+                        </div>
+
+                        <div class="stat-item">
+                            <div class="stat-value" id="avgConfidence">0%</div>
+                            <div class="stat-label">Avg Confidence</div>
+                        </div>
+
+                        <div class="stat-item">
+                            <div class="stat-value text-success" id="cameraStatus">Online</div>
+                            <div class="stat-label">Camera Status</div>
+                        </div>
+                    </div>
+
+                    <!-- Detection Log -->
+                    <div class="detection-log">
+                        <h5 class="text-white mb-3">
+                            <i class="fas fa-list me-2"></i>Detection Log
+                        </h5>
+                        <div id="detectionLogContainer">
+                            <div class="log-item">
+                                <div class="log-time">2025-01-14 19:07:45</div>
+                                <div class="log-message">System started - Camera initialized</div>
+                            </div>
+                            <div class="log-item">
+                                <div class="log-time">2025-01-14 19:07:46</div>
+                                <div class="log-message">Face detection model loaded</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let isRecording = false;
+        let detectionCount = 0;
+        let uniquePersons = new Set();
+        let lastStatsUpdate = Date.now();
+        let cameraStatus = 'connecting';
+
+        // Video source selection
+        document.getElementById('videoSource').addEventListener('change', function() {
+            const rtspInput = document.getElementById('rtspInput');
+            if (this.value === 'rtsp') {
+                rtspInput.style.display = 'block';
+            } else {
+                rtspInput.style.display = 'none';
+            }
+        });
+
+        async function changeVideoSource() {
+            const sourceSelect = document.getElementById('videoSource');
+            const source = sourceSelect.value;
+            let videoSource = source;
+
+            if (source === 'rtsp') {
+                const rtspUrl = document.getElementById('rtspUrl').value.trim();
+                if (!rtspUrl) {
+                    alert('Please enter RTSP URL');
+                    return;
+                }
+                videoSource = rtspUrl;
+            }
+
+            try {
+                addToLog(`Changing video source to: ${videoSource}`);
+                const response = await fetch('/change_video_source', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ source: videoSource })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    addToLog(`Video source changed successfully: ${result.message}`);
+                    // Reload the video feed
+                    const videoFeed = document.getElementById('videoFeed');
+                    videoFeed.src = videoFeed.src + '?t=' + Date.now();
+                } else {
+                    addToLog(`Failed to change video source: ${result.message}`);
+                    alert('Failed to change video source: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error changing video source:', error);
+                addToLog('Error changing video source');
+                alert('Error changing video source');
+            }
+        }
+
+        // Recording functions
+        async function startRecording() {
+            try {
+                const response = await fetch('/api/start_recording', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    isRecording = true;
+                    addToLog('Recording started');
+                    document.querySelector('button[onclick="startRecording()"]').disabled = true;
+                    document.querySelector('button[onclick="stopRecording()"]').disabled = false;
+                } else {
+                    addToLog('Failed to start recording: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                addToLog('Error starting recording');
+            }
+        }
+
+        async function stopRecording() {
+            try {
+                const response = await fetch('/api/stop_recording', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    isRecording = false;
+                    addToLog('Recording stopped');
+                    document.querySelector('button[onclick="startRecording()"]').disabled = false;
+                    document.querySelector('button[onclick="stopRecording()"]').disabled = true;
+                } else {
+                    addToLog('Failed to stop recording: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error stopping recording:', error);
+                addToLog('Error stopping recording');
+            }
+        }
+
+        async function captureSnapshot() {
+            try {
+                const response = await fetch('/api/capture_snapshot', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    addToLog('Snapshot captured and saved');
+                } else {
+                    addToLog('Failed to capture snapshot: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error capturing snapshot:', error);
+                addToLog('Error capturing snapshot');
+            }
+        }
+
+        // Update video feed timestamp to prevent caching
+        function refreshVideoFeed() {
+            const videoFeed = document.getElementById('videoFeed');
+            const timestamp = new Date().getTime();
+            videoFeed.src = `{{ url_for('video_feed') }}?t=${timestamp}`;
+        }
+
+        // Refresh video feed every 30 seconds
+        setInterval(refreshVideoFeed, 30000);
+
+        // Recording functions
+        async function startRecording() {
+            try {
+                const response = await fetch('/api/start_recording', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    isRecording = true;
+                    addToLog('Recording started');
+                    document.querySelector('button[onclick="startRecording()"]').disabled = true;
+                    document.querySelector('button[onclick="stopRecording()"]').disabled = false;
+                } else {
+                    addToLog('Failed to start recording: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                addToLog('Error starting recording');
+            }
+        }
+
+        async function stopRecording() {
+            try {
+                const response = await fetch('/api/stop_recording', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    isRecording = false;
+                    addToLog('Recording stopped');
+                    document.querySelector('button[onclick="startRecording()"]').disabled = false;
+                    document.querySelector('button[onclick="stopRecording()"]').disabled = true;
+                } else {
+                    addToLog('Failed to stop recording: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error stopping recording:', error);
+                addToLog('Error stopping recording');
+            }
+        }
+
+        async function captureSnapshot() {
+            try {
+                const response = await fetch('/api/capture_snapshot', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    addToLog('Snapshot captured and saved');
+                } else {
+                    addToLog('Failed to capture snapshot: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error capturing snapshot:', error);
+                addToLog('Error capturing snapshot');
+            }
+        }
+
+        function captureSnapshot() {
+            // Add snapshot logic here
+            addToLog('Snapshot captured');
+            
+            // Create a link to download the current frame
+            const canvas = document.createElement('canvas');
+            const video = document.getElementById('videoFeed');
+            canvas.width = video.naturalWidth || video.width;
+            canvas.height = video.naturalHeight || video.height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = `snapshot_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function toggleFullscreen() {
+            const videoFeed = document.getElementById('videoFeed');
+            if (videoFeed.requestFullscreen) {
+                videoFeed.requestFullscreen();
+            } else if (videoFeed.webkitRequestFullscreen) {
+                videoFeed.webkitRequestFullscreen();
+            } else if (videoFeed.msRequestFullscreen) {
+                videoFeed.msRequestFullscreen();
+            }
+        }
+
+        function addToLog(message) {
+            const logContainer = document.getElementById('detectionLogContainer');
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            
+            const now = new Date();
+            const timeString = now.toLocaleString();
+            
+            logItem.innerHTML = `
+                <div class="log-time">${timeString}</div>
+                <div class="log-message">${message}</div>
+            `;
+            
+            logContainer.insertBefore(logItem, logContainer.firstChild);
+            
+            // Keep only the last 20 log items
+            while (logContainer.children.length > 20) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        function updateStats() {
+            // Fetch real statistics from the server
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.current_status) {
+                        // Update detection count
+                        const todaySessions = data.today_summary.total_sessions || 0;
+                        document.getElementById('detectionCount').textContent = todaySessions;
+                        
+                        // Update unique persons (approximate from sessions)
+                        document.getElementById('uniquePersons').textContent = Math.max(1, Math.floor(todaySessions * 0.8));
+                        
+                        // Update camera status based on response
+                        const cameraStatusElement = document.getElementById('cameraStatus');
+                        if (data.current_status.is_present !== undefined) {
+                            cameraStatusElement.textContent = 'Online';
+                            cameraStatusElement.className = 'stat-value text-success';
+                        } else {
+                            cameraStatusElement.textContent = 'Connecting...';
+                            cameraStatusElement.className = 'stat-value text-warning';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching stats:', error);
+                    document.getElementById('cameraStatus').textContent = 'Error';
+                    document.getElementById('cameraStatus').className = 'stat-value text-danger';
+                });
+        }
+
+        // Real-time statistics updates
+        setInterval(updateStats, 5000); // Update every 5 seconds
+
+        // Check camera status with better error handling
+        function checkCameraStatus() {
+            const video = document.getElementById('videoFeed');
+            const statusElement = document.getElementById('cameraStatus');
+            
+            // Set initial status
+            statusElement.textContent = 'Connecting...';
+            statusElement.className = 'stat-value text-warning';
+            
+            video.onerror = function() {
+                statusElement.textContent = 'Offline';
+                statusElement.className = 'stat-value text-danger';
+                addToLog('Camera connection lost - check camera permissions and connections');
+                
+                // Try to refresh the feed after a delay
+                setTimeout(() => {
+                    refreshVideoFeed();
+                }, 3000);
+            };
+            
+            video.onload = function() {
+                statusElement.textContent = 'Online';
+                statusElement.className = 'stat-value text-success';
+                addToLog('Camera feed connected successfully');
+            };
+            
+            // Check if video is actually loading
+            setTimeout(() => {
+                if (video.complete && video.naturalHeight === 0) {
+                    statusElement.textContent = 'No Signal';
+                    statusElement.className = 'stat-value text-warning';
+                    addToLog('Camera connected but no video signal detected');
+                }
+            }, 5000);
+        }
+
+        // Enhanced video feed refresh
+        function refreshVideoFeed() {
+            const videoFeed = document.getElementById('videoFeed');
+            const currentSrc = videoFeed.src;
+            const separator = currentSrc.includes('?') ? '&' : '?';
+            videoFeed.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
+            addToLog('Refreshing video feed...');
+        }
+
+        // Auto-refresh video feed every 30 seconds to prevent stale connections
+        setInterval(refreshVideoFeed, 30000);
+
+        // Video Analysis Functions
+        async function analyzeVideo() {
+            const videoInput = document.getElementById('videoUpload');
+            const analysisStatus = document.getElementById('analysisStatus');
+            const analysisResults = document.getElementById('analysisResults');
+
+            if (!videoInput.files || videoInput.files.length === 0) {
+                alert('Please select a video file first');
+                return;
+            }
+
+            const videoFile = videoInput.files[0];
+
+            // Show analysis status
+            analysisStatus.style.display = 'block';
+            analysisResults.style.display = 'none';
+
+            addToLog(`Starting AI analysis of video: ${videoFile.name}`);
+
+            try {
+                const formData = new FormData();
+                formData.append('video', videoFile);
+
+                const response = await fetch('/api/analyze_video', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addToLog(`Video uploaded successfully. Analysis in progress...`);
+                    // Start polling for results
+                    pollAnalysisResults();
+                } else {
+                    addToLog(`Video upload failed: ${result.message}`);
+                    alert(`Upload failed: ${result.message}`);
+                    analysisStatus.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error uploading video:', error);
+                addToLog('Error uploading video for analysis');
+                alert('Error uploading video');
+                analysisStatus.style.display = 'none';
+            }
+        }
+
+        async function pollAnalysisResults() {
+            const analysisStatus = document.getElementById('analysisStatus');
+            const analysisResults = document.getElementById('analysisResults');
+
+            try {
+                const response = await fetch('/api/video_analysis_status');
+                const data = await response.json();
+
+                if (data.success && data.latest_results) {
+                    // Analysis completed
+                    analysisStatus.style.display = 'none';
+                    analysisResults.style.display = 'block';
+
+                    displayAnalysisResults(data.latest_results.results);
+                    addToLog('Video analysis completed successfully');
+                } else if (data.status && data.status.is_analyzing) {
+                    // Still analyzing, continue polling
+                    setTimeout(pollAnalysisResults, 2000);
+                } else {
+                    // Analysis failed or not started
+                    analysisStatus.style.display = 'none';
+                    addToLog('Video analysis failed or not found');
+                }
+            } catch (error) {
+                console.error('Error polling analysis results:', error);
+                analysisStatus.style.display = 'none';
+                addToLog('Error checking analysis status');
+            }
+        }
+
+        function displayAnalysisResults(results) {
+            const objectsList = document.getElementById('objectsList');
+            const labelsList = document.getElementById('labelsList');
+            const videoStats = document.getElementById('videoStats');
+
+            // Clear previous results
+            objectsList.innerHTML = '';
+            labelsList.innerHTML = '';
+            videoStats.innerHTML = '';
+
+            // Display objects
+            if (results.top_objects && results.top_objects.length > 0) {
+                results.top_objects.forEach(([obj, count]) => {
+                    const objDiv = document.createElement('div');
+                    objDiv.innerHTML = `<span class="badge bg-info me-1">${obj}</span> (${count})`;
+                    objectsList.appendChild(objDiv);
+                });
+            } else {
+                objectsList.innerHTML = '<em>No objects detected</em>';
+            }
+
+            // Display labels/actions
+            if (results.top_labels && results.top_labels.length > 0) {
+                results.top_labels.forEach(([label, count]) => {
+                    const labelDiv = document.createElement('div');
+                    labelDiv.innerHTML = `<span class="badge bg-success me-1">${label}</span> (${count})`;
+                    labelsList.appendChild(labelDiv);
+                });
+            } else {
+                labelsList.innerHTML = '<em>No actions/scenes detected</em>';
+            }
+
+            // Display statistics
+            const stats = [
+                `Duration: ${results.duration ? results.duration.toFixed(1) : 'N/A'}s`,
+                `Total Frames: ${results.total_frames || 'N/A'}`,
+                `Processed Frames: ${results.processed_frames || 'N/A'}`,
+                `Faces Detected: ${results.faces_detected || 0}`
+            ];
+
+            stats.forEach(stat => {
+                const statDiv = document.createElement('div');
+                statDiv.textContent = stat;
+                videoStats.appendChild(statDiv);
+            });
+        }
+
+        // Initialize
+        checkCameraStatus();
+        addToLog('Live feed interface loaded');
+    </script>
+</body>
+</html>

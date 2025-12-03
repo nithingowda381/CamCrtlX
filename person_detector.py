@@ -1,9 +1,22 @@
 import cv2
 import numpy as np
+import os
+import torch
+
+# Patch torch.load for PyTorch 2.6+ to support YOLO models
+original_torch_load = torch.load
+
+def patched_torch_load(f, *args, **kwargs):
+    # Set weights_only=False for YOLO model compatibility
+    kwargs['weights_only'] = False
+    return original_torch_load(f, *args, **kwargs)
+
+torch.load = patched_torch_load
+
 try:
     from ultralytics import YOLO
     YOLO_AVAILABLE = True
-except Exception:
+except Exception as e:
     YOLO_AVAILABLE = False
 import threading
 import time

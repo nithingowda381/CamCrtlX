@@ -1966,7 +1966,7 @@ def upload_video():
 @app.route('/api/get_detected_faces')
 @login_required
 def get_detected_faces():
-    """Get recently detected faces from the system"""
+    """Get recently detected faces from the system with activity info"""
     try:
         # Get recent detections from the detector
         detected_faces = []
@@ -1977,12 +1977,16 @@ def get_detected_faces():
             recent = detector.recent_detections[-10:]
             
             for detection in recent:
+                # Get activity if available
+                activity = detection.get('activity', 'unknown')
+                
                 face_data = {
                     'name': detection.get('name', 'Unknown'),
                     'confidence': detection.get('confidence', 0),
                     'image_data': detection.get('image_data', ''),
                     'is_known': detection.get('is_known', False),
-                    'timestamp': detection.get('timestamp', time.time() * 1000)
+                    'timestamp': detection.get('timestamp', time.time() * 1000),
+                    'activity': activity
                 }
                 detected_faces.append(face_data)
             

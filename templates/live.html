@@ -1867,7 +1867,7 @@
         };
 
         function addDetectedFace(faceData) {
-            const { name, confidence, image_data, is_known, timestamp } = faceData;
+            const { name, confidence, image_data, is_known, timestamp, activity = 'unknown' } = faceData;
             // Use consistent ID format for duplicate checking
             const faceId = `face_${timestamp}_${name}`;
             
@@ -1877,7 +1877,8 @@
                 confidence: confidence,
                 image_data: image_data,
                 timestamp: timestamp,
-                time_str: new Date(timestamp).toLocaleTimeString()
+                time_str: new Date(timestamp).toLocaleTimeString(),
+                activity: activity || 'unknown'
             };
             
             if (is_known) {
@@ -1911,6 +1912,7 @@
                     <img src="data:image/jpeg;base64,${face.image_data}" alt="${face.name}">
                     <div class="face-name">${face.name}</div>
                     <div class="face-confidence">${Math.round(face.confidence)}% confidence</div>
+                    <div class="face-activity" style="font-size: 0.85rem; color: #667eea; margin-top: 5px; font-weight: 500;">Activity: ${face.activity.charAt(0).toUpperCase() + face.activity.slice(1)}</div>
                 </div>
             `).join('');
         }
@@ -1935,6 +1937,7 @@
                     <img src="data:image/jpeg;base64,${face.image_data}" alt="Unknown Person">
                     <div class="face-name">Unknown Person</div>
                     <div class="face-confidence">${Math.round(face.confidence)}% confidence</div>
+                    <div class="face-activity" style="font-size: 0.85rem; color: #ef4444; margin-top: 5px; font-weight: 500;">Activity: ${face.activity.charAt(0).toUpperCase() + face.activity.slice(1)}</div>
                 </div>
             `).join('');
         }

@@ -5,6 +5,11 @@ try:
     YOLO_AVAILABLE = True
 except Exception:
     YOLO_AVAILABLE = False
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except Exception:
+    MEDIAPIPE_AVAILABLE = False
 import threading
 import time
 from typing import Optional, Tuple, List
@@ -58,6 +63,11 @@ class PersonDetector:
         # Action display tracking
         self.current_actions = {}  # Store current actions for each person
         self.action_display_time = {}  # When to stop showing action text
+        
+        # Activity detection with MediaPipe
+        self.pose_detector = None
+        self.person_activities = {}  # Track activity for each detected person
+        self._init_pose_detector()
 
         # Recent face detections for live display
         self.recent_detections = []
@@ -308,6 +318,110 @@ class PersonDetector:
         """Enable or disable video overlays"""
         self.overlays_enabled = enabled
         print(f"Video overlays {'enabled' if enabled else 'disabled'}")
+    
+    def _init_pose_detector(self):
+        """Initialize MediaPipe pose detector for activity detection"""
+        try:
+            if MEDIAPIPE_AVAILABLE:
+                mp_pose = mp.solutions.pose
+                self.pose_detector = mp_pose.Pose(
+                    static_image_mode=False,
+                    model_complexity=0,  # 0=light, 1=full - use light for speed
+                    smooth_landmarks=True,
+                    enable_segmentation=False,
+                    smooth_segmentation=False,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5
+                )
+                print("✓ MediaPipe pose detector initialized successfully")
+            else:
+                print("ℹ MediaPipe not available - activity detection disabled")
+                self.pose_detector = None
+        except Exception as e:
+            print(f"Warning: Could not initialize pose detector: {e}")
+            self.pose_detector = None
+    
+    def detect_person_activity(self, frame_roi: np.ndarray) -> str:
+        """
+        Detect person's activity/pose from ROI
+        Returns: 'standing', 'sitting', 'phone', 'walking', 'unknown'
+        """
+        if self.pose_detector is None or frame_roi is None or frame_roi.size == 0:
+            return 'unknown'
+        
+        try:
+            # Convert BGR to RGB for MediaPipe
+            rgb_frame = cv2.cvtColor(frame_roi, cv2.COLOR_BGR2RGB)
+            results = self.pose_detector.process(rgb_frame)
+            
+            if not results.pose_landmarks:
+                return 'unknown'
+            
+            landmarks = results.pose_landmarks.landmark
+            
+            # Get key points coordinates (normalized 0-1)
+            # MediaPipe keypoints: 0=nose, 11=left_shoulder, 12=right_shoulder, 
+            #                      13=left_elbow, 14=right_elbow, 15=left_wrist, 16=right_wrist,
+            #                      23=left_hip, 24=right_hip, 25=left_knee, 26=right_knee
+            
+            h, w = frame_roi.shape[:2]
+            
+            # Extract key points
+            nose = landmarks[0]
+            left_shoulder = landmarks[11]
+            right_shoulder = landmarks[12]
+            left_elbow = landmarks[13]
+            right_elbow = landmarks[14]
+            left_wrist = landmarks[15]
+            right_wrist = landmarks[16]
+            left_hip = landmarks[23]
+            right_hip = landmarks[24]
+            left_knee = landmarks[25]
+            right_knee = landmarks[26]
+            
+            # Check visibility (confidence score)
+            min_visibility = 0.3
+            if nose.visibility < min_visibility:
+                return 'unknown'
+            
+            # Calculate distances
+            shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
+            hip_y = (left_hip.y + right_hip.y) / 2
+            shoulder_x = (left_shoulder.x + right_shoulder.x) / 2
+            hip_x = (left_hip.x + right_hip.x) / 2
+            
+            wrist_y_avg = (left_wrist.y + right_wrist.y) / 2
+            wrist_x_avg = (left_wrist.x + right_wrist.x) / 2
+            
+            # Calculate key angles
+            elbow_y_avg = (left_elbow.y + right_elbow.y) / 2
+            
+            # Detect activity based on pose
+            activity = 'standing'
+            
+            # Check if person is on phone (hands near head)
+            if (left_wrist.y < shoulder_y + 0.2 and left_wrist.x < nose.x + 0.3) or \
+               (right_wrist.y < shoulder_y + 0.2 and right_wrist.x > nose.x - 0.3):
+                activity = 'phone'
+            
+            # Check if sitting (hip lower relative to knee, shoulder-hip distance smaller)
+            elif hip_y > left_knee.y + 0.1:
+                activity = 'sitting'
+            
+            # Check if bent forward/looking down (nose below shoulders)
+            elif nose.y > shoulder_y + 0.15:
+                activity = 'phone'  # Likely looking at phone
+            
+            # Check for walking (high variation in position would be detected by multi-frame analysis)
+            # For now, assume standing if none of above
+            else:
+                activity = 'standing'
+            
+            return activity
+            
+        except Exception as e:
+            print(f"Error in activity detection: {e}")
+            return 'unknown'
     
     def load_employee_faces(self):
         """Load employee face data for recognition - SIMPLIFIED"""
@@ -916,11 +1030,25 @@ class PersonDetector:
             print(f"Error adding overlay: {e}")
     
     def draw_person_overlay(self, frame, x1, y1, x2, y2, confidence, employee_info):
-        """Draw person overlay with name and status on the video frame"""
+        """Draw person overlay with name, activity and status on the video frame"""
         try:
             tentative = False
             if isinstance(employee_info, dict) and employee_info.get('tentative'):
                 tentative = True
+
+            # Detect activity from the ROI
+            person_roi = frame[int(y1):int(y2), int(x1):int(x2)]
+            activity = self.detect_person_activity(person_roi) if person_roi.size > 0 else 'unknown'
+            
+            # Activity emoji mapping
+            activity_emoji = {
+                'standing': '🧑‍💼',
+                'sitting': '🪑',
+                'phone': '📱',
+                'walking': '🚶',
+                'unknown': '❓'
+            }
+            activity_display = activity_emoji.get(activity, '❓')
 
             # Recognized and confirmed
             if employee_info and not tentative:
@@ -944,6 +1072,12 @@ class PersonDetector:
                             (int(x1), int(y1)-35),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6, (0, 255, 0), 2)
+                # Activity label
+                activity_label = f"Activity: {activity.title()}"
+                cv2.putText(frame, activity_label,
+                            (int(x1), int(y1)-10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6, (0, 255, 0), 2)
 
             # Tentative (not yet confirmed)
             elif employee_info and tentative:
@@ -956,6 +1090,12 @@ class PersonDetector:
                 confidence_label = f"Confidence: {employee_info.get('confidence', 0):.1f}%"
                 cv2.putText(frame, confidence_label,
                             (int(x1), int(y1)-35),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6, (0, 140, 255), 2)
+                # Activity label
+                activity_label = f"Activity: {activity.title()}"
+                cv2.putText(frame, activity_label,
+                            (int(x1), int(y1)-10),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6, (0, 140, 255), 2)
 
@@ -981,6 +1121,12 @@ class PersonDetector:
                             (int(x1), int(y1)-35),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6, (0, 0, 255), 2)
+                # Activity label for unknown
+                activity_label = f"Activity: {activity.title()}"
+                cv2.putText(frame, activity_label,
+                            (int(x1), int(y1)-10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6, (0, 0, 255), 2)
 
             # Draw rectangle around person with appropriate color
             cv2.rectangle(frame,
@@ -992,11 +1138,14 @@ class PersonDetector:
             print(f"Error drawing person overlay: {e}")
     
     def recognize_person_face(self, person_roi) -> Optional[dict]:
-        """Recognize face in person region of interest with enhanced detection"""
+        """Recognize face in person region of interest with enhanced detection and activity"""
         try:
             if person_roi is None or person_roi.size == 0:
                 self._last_face_found = False
                 return None
+            
+            # Detect activity early so we can include it in the return data
+            activity = self.detect_person_activity(person_roi)
 
             # Convert to grayscale for face detection
             gray_roi = cv2.cvtColor(person_roi, cv2.COLOR_BGR2GRAY)
@@ -1095,14 +1244,15 @@ class PersonDetector:
             except Exception:
                 is_known = False
 
-            # Store detection with explicit known/unknown flag
-            self.store_detected_face(face_img, employee_db_id, confidence, color_crop, is_known=is_known)
+            # Store detection with explicit known/unknown flag and activity
+            self.store_detected_face(face_img, employee_db_id, confidence, color_crop, is_known=is_known, activity=activity)
 
             if is_known:
                 employee_data = self.employee_labels[employee_db_id].copy()
                 employee_data['confidence'] = confidence
                 employee_data['db_id'] = employee_db_id
-                print(f"Employee recognized: {employee_data.get('name', 'Unknown')} (confidence: {confidence:.2f}%)")
+                employee_data['activity'] = activity
+                print(f"Employee recognized: {employee_data.get('name', 'Unknown')} (confidence: {confidence:.2f}%, activity: {activity})")
                 return employee_data
             else:
                 print(f"Prediction for label {employee_db_id} below similarity threshold ({confidence:.2f}% < {self.min_similarity_percent}). Treating as unknown")
@@ -1113,7 +1263,7 @@ class PersonDetector:
             self._last_face_found = False
             return None
     
-    def store_detected_face(self, face_gray, employee_db_id, confidence, face_color, is_known=None):
+    def store_detected_face(self, face_gray, employee_db_id, confidence, face_color, is_known=None, activity='unknown'):
         """Store detected face data for live display
 
         is_known: optional boolean to explicitly mark whether the detection is a
@@ -1144,7 +1294,8 @@ class PersonDetector:
                 'confidence': confidence if confidence else 0,
                 'image_data': face_base64,
                 'is_known': is_known,
-                'timestamp': time.time() * 1000  # JavaScript timestamp
+                'timestamp': time.time() * 1000,  # JavaScript timestamp
+                'activity': activity
             }
             
             # Add to recent detections

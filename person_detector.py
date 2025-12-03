@@ -59,10 +59,14 @@ class PersonDetector:
         self.current_actions = {}  # Store current actions for each person
         self.action_display_time = {}  # When to stop showing action text
         
-        # Activity detection with MediaPipe
+        # Activity detection with OpenCV
         self.pose_detector = None
         self.person_activities = {}  # Track activity for each detected person
         self._init_pose_detector()
+        
+        # Object detection (bags, phones, laptops, TV)
+        self.detected_objects = {}  # Track detected objects
+        self.object_classes = ['bag', 'handbag', 'backpack', 'mobile phone', 'cell phone', 'laptop', 'monitor', 'tv', 'screen']
 
         # Recent face detections for live display
         self.recent_detections = []
@@ -388,6 +392,48 @@ class PersonDetector:
         except Exception as e:
             print(f"Error in activity detection: {e}")
             return 'unknown'
+    
+    def detect_objects_in_frame(self, frame: np.ndarray) -> dict:
+        """
+        Detect objects like bags, phones, laptops, TV in the frame
+        Returns dict with object names and their bounding boxes
+        """
+        objects_found = {}
+        
+        if not YOLO_AVAILABLE or self.model is None:
+            return objects_found
+        
+        try:
+            # Run YOLO detection on entire frame
+            results = self.model(frame, conf=0.3)  # Lower confidence for object detection
+            
+            for result in results:
+                boxes = result.boxes
+                if boxes is not None:
+                    for box in boxes:
+                        class_id = int(box.cls[0])
+                        class_name = result.names.get(class_id, f"Class {class_id}")
+                        confidence = float(box.conf[0])
+                        
+                        # Check if detected object is in our interest list
+                        if any(obj_type.lower() in class_name.lower() for obj_type in self.object_classes):
+                            x1, y1, x2, y2 = box.xyxy[0].tolist()
+                            
+                            key = f"{class_name}_{confidence:.2f}"
+                            objects_found[key] = {
+                                'name': class_name,
+                                'confidence': confidence,
+                                'box': (x1, y1, x2, y2)
+                            }
+            
+            # Store detected objects for tracking
+            if objects_found:
+                self.detected_objects = objects_found
+                
+        except Exception as e:
+            print(f"Error in object detection: {e}")
+        
+        return objects_found
     
     def load_employee_faces(self):
         """Load employee face data for recognition - SIMPLIFIED"""
@@ -1044,6 +1090,15 @@ class PersonDetector:
                             (int(x1), int(y1)-10),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6, (0, 255, 0), 2)
+                
+                # Objects label (if any detected)
+                nearby_objects = employee_info.get('nearby_objects', [])
+                if nearby_objects:
+                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])  # Show first 2 objects
+                    cv2.putText(frame, objects_text,
+                                (int(x1), int(y1)+15),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5, (0, 200, 200), 2)
 
             # Tentative (not yet confirmed)
             elif employee_info and tentative:
@@ -1064,6 +1119,15 @@ class PersonDetector:
                             (int(x1), int(y1)-10),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6, (0, 140, 255), 2)
+                
+                # Objects label (if any detected)
+                nearby_objects = employee_info.get('nearby_objects', [])
+                if nearby_objects:
+                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])  # Show first 2 objects
+                    cv2.putText(frame, objects_text,
+                                (int(x1), int(y1)+15),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5, (0, 200, 200), 2)
 
             # Unknown
             else:
@@ -1093,6 +1157,15 @@ class PersonDetector:
                             (int(x1), int(y1)-10),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6, (0, 0, 255), 2)
+                
+                # Objects label for unknown (if any detected)
+                nearby_objects = employee_info.get('nearby_objects', []) if employee_info else []
+                if nearby_objects:
+                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])  # Show first 2 objects
+                    cv2.putText(frame, objects_text,
+                                (int(x1), int(y1)+15),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5, (0, 150, 255), 2)
 
             # Draw rectangle around person with appropriate color
             cv2.rectangle(frame,
@@ -1104,7 +1177,7 @@ class PersonDetector:
             print(f"Error drawing person overlay: {e}")
     
     def recognize_person_face(self, person_roi) -> Optional[dict]:
-        """Recognize face in person region of interest with enhanced detection and activity"""
+        """Recognize face in person region of interest with enhanced detection, activity and nearby objects"""
         try:
             if person_roi is None or person_roi.size == 0:
                 self._last_face_found = False
@@ -1112,6 +1185,15 @@ class PersonDetector:
             
             # Detect activity early so we can include it in the return data
             activity = self.detect_person_activity(person_roi)
+            
+            # Detect nearby objects (bags, phones, laptops, etc)
+            nearby_objects = []
+            if YOLO_AVAILABLE and self.model is not None:
+                try:
+                    objects = self.detect_objects_in_frame(person_roi)
+                    nearby_objects = list(objects.keys())
+                except Exception as e:
+                    print(f"Error detecting nearby objects: {e}")
 
             # Convert to grayscale for face detection
             gray_roi = cv2.cvtColor(person_roi, cv2.COLOR_BGR2GRAY)
@@ -1211,14 +1293,15 @@ class PersonDetector:
                 is_known = False
 
             # Store detection with explicit known/unknown flag and activity
-            self.store_detected_face(face_img, employee_db_id, confidence, color_crop, is_known=is_known, activity=activity)
-
+            self.store_detected_face(face_img, employee_db_id, confidence, color_crop, is_known=is_known, activity=activity, nearby_objects=nearby_objects)
             if is_known:
                 employee_data = self.employee_labels[employee_db_id].copy()
                 employee_data['confidence'] = confidence
                 employee_data['db_id'] = employee_db_id
                 employee_data['activity'] = activity
-                print(f"Employee recognized: {employee_data.get('name', 'Unknown')} (confidence: {confidence:.2f}%, activity: {activity})")
+                employee_data['nearby_objects'] = nearby_objects
+                objects_str = ", ".join(nearby_objects) if nearby_objects else "none"
+                print(f"Employee recognized: {employee_data.get('name', 'Unknown')} (confidence: {confidence:.2f}%, activity: {activity}, objects: {objects_str})")
                 return employee_data
             else:
                 print(f"Prediction for label {employee_db_id} below similarity threshold ({confidence:.2f}% < {self.min_similarity_percent}). Treating as unknown")
@@ -1229,7 +1312,7 @@ class PersonDetector:
             self._last_face_found = False
             return None
     
-    def store_detected_face(self, face_gray, employee_db_id, confidence, face_color, is_known=None, activity='unknown'):
+    def store_detected_face(self, face_gray, employee_db_id, confidence, face_color, is_known=None, activity='unknown', nearby_objects=None):
         """Store detected face data for live display
 
         is_known: optional boolean to explicitly mark whether the detection is a
@@ -1261,7 +1344,8 @@ class PersonDetector:
                 'image_data': face_base64,
                 'is_known': is_known,
                 'timestamp': time.time() * 1000,  # JavaScript timestamp
-                'activity': activity
+                'activity': activity,
+                'nearby_objects': nearby_objects if nearby_objects else []
             }
             
             # Add to recent detections

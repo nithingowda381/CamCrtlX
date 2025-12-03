@@ -1867,7 +1867,7 @@
         };
 
         function addDetectedFace(faceData) {
-            const { name, confidence, image_data, is_known, timestamp, activity = 'unknown' } = faceData;
+            const { name, confidence, image_data, is_known, timestamp, activity = 'unknown', nearby_objects = [] } = faceData;
             // Use consistent ID format for duplicate checking
             const faceId = `face_${timestamp}_${name}`;
             
@@ -1878,7 +1878,8 @@
                 image_data: image_data,
                 timestamp: timestamp,
                 time_str: new Date(timestamp).toLocaleTimeString(),
-                activity: activity || 'unknown'
+                activity: activity || 'unknown',
+                nearby_objects: nearby_objects || []
             };
             
             if (is_known) {
@@ -1906,15 +1907,21 @@
             }
             
             const faces = Array.from(detectedFaces.known.values()).sort((a, b) => b.timestamp - a.timestamp);
-            container.innerHTML = faces.map(face => `
+            container.innerHTML = faces.map(face => {
+                const objectsText = face.nearby_objects.length > 0 
+                    ? face.nearby_objects.slice(0, 2).join(', ') 
+                    : 'None';
+                return `
                 <div class="face-card known" onclick="showFaceDetails('${face.id}', 'known')">
                     <div class="face-time">${face.time_str}</div>
                     <img src="data:image/jpeg;base64,${face.image_data}" alt="${face.name}">
                     <div class="face-name">${face.name}</div>
                     <div class="face-confidence">${Math.round(face.confidence)}% confidence</div>
                     <div class="face-activity" style="font-size: 0.85rem; color: #667eea; margin-top: 5px; font-weight: 500;">Activity: ${face.activity.charAt(0).toUpperCase() + face.activity.slice(1)}</div>
+                    <div style="font-size: 0.8rem; color: #10b981; margin-top: 4px;">Objects: ${objectsText}</div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function updateUnknownFacesDisplay() {
@@ -1931,15 +1938,21 @@
             }
             
             const faces = Array.from(detectedFaces.unknown.values()).sort((a, b) => b.timestamp - a.timestamp);
-            container.innerHTML = faces.map(face => `
+            container.innerHTML = faces.map(face => {
+                const objectsText = face.nearby_objects.length > 0 
+                    ? face.nearby_objects.slice(0, 2).join(', ') 
+                    : 'None';
+                return `
                 <div class="face-card unknown" onclick="showFaceDetails('${face.id}', 'unknown')">
                     <div class="face-time">${face.time_str}</div>
                     <img src="data:image/jpeg;base64,${face.image_data}" alt="Unknown Person">
                     <div class="face-name">Unknown Person</div>
                     <div class="face-confidence">${Math.round(face.confidence)}% confidence</div>
                     <div class="face-activity" style="font-size: 0.85rem; color: #ef4444; margin-top: 5px; font-weight: 500;">Activity: ${face.activity.charAt(0).toUpperCase() + face.activity.slice(1)}</div>
+                    <div style="font-size: 0.8rem; color: #f59e0b; margin-top: 4px;">Objects: ${objectsText}</div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function updateFaceCounts() {

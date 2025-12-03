@@ -29,9 +29,12 @@ class PersonDetector:
         if YOLO_AVAILABLE:
             try:
                 self.model = YOLO(model_path)
+                print(f"[INFO] YOLO model loaded successfully. Object detection enabled.")
             except Exception as e:
-                print(f"YOLO model load failed: {e}. Falling back to OpenCV-only detection.")
+                print(f"[ERROR] YOLO model load failed: {e}. Falling back to OpenCV-only detection.")
                 self.model = None
+        else:
+            print(f"[WARNING] YOLO not available. Object detection disabled.")
         self.confidence_threshold = confidence_threshold
         self.cap = None
         self.is_running = False
@@ -67,7 +70,7 @@ class PersonDetector:
         
         # Object detection (bags, phones, laptops, TV)
         self.detected_objects = {}  # Track detected objects
-        self.object_classes = ['bag', 'handbag', 'backpack', 'mobile phone', 'cell phone', 'laptop', 'monitor', 'tv', 'screen']
+        self.object_classes = ['bag', 'handbag', 'backpack', 'phone', 'cell phone', 'laptop', 'tv', 'monitor', 'screen', 'smartphone']
         self.last_objects_frame_id = None  # Cache frame ID for object detection
         self.last_objects_results = {}  # Cache results to avoid re-detecting same frame
 
@@ -416,8 +419,9 @@ class PersonDetector:
                 return self.last_objects_results
             
             # Run YOLO detection on entire frame
-            results = self.model(frame, conf=0.3)  # Lower confidence for object detection
+            results = self.model(frame, conf=0.25)  # Lower confidence for better phone detection
             
+            detected_count = 0
             for result in results:
                 boxes = result.boxes
                 if boxes is not None:
@@ -425,9 +429,14 @@ class PersonDetector:
                         class_id = int(box.cls[0])
                         class_name = result.names.get(class_id, f"Class {class_id}")
                         confidence = float(box.conf[0])
+                        detected_count += 1
+                        
+                        # Debug: Log all detected objects
+                        print(f"[DEBUG] Detected: {class_name} (conf: {confidence:.2f})")
                         
                         # Check if detected object is in our interest list
-                        if any(obj_type.lower() in class_name.lower() for obj_type in self.object_classes):
+                        is_match = any(obj_type.lower() in class_name.lower() for obj_type in self.object_classes)
+                        if is_match:
                             x1, y1, x2, y2 = box.xyxy[0].tolist()
                             
                             key = f"{class_name}_{confidence:.2f}"
@@ -436,6 +445,14 @@ class PersonDetector:
                                 'confidence': confidence,
                                 'box': (x1, y1, x2, y2)
                             }
+                            # Debug: Log matched objects
+                            print(f"[DEBUG] MATCHED: {class_name}")
+                        else:
+                            print(f"[DEBUG] NO MATCH: {class_name} (not in {self.object_classes})")
+            
+            # Log detection summary
+            if detected_count == 0:
+                print(f"[DEBUG] No objects detected in frame")
             
             # Store detected objects for tracking
             if objects_found:

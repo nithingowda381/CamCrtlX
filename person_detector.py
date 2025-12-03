@@ -20,6 +20,7 @@ warnings.filterwarnings(
     "ignore",
     message=r"resource_tracker: There appear to be .* leaked semaphore objects to clean up at shutdown",
 )
+warnings.filterwarnings("ignore", category=UserWarning)  # Suppress other UserWarnings from loky
 
 class PersonDetector:
     def __init__(self, model_path: str = 'yolov8n.pt', confidence_threshold: float = 0.5):
@@ -67,6 +68,8 @@ class PersonDetector:
         # Object detection (bags, phones, laptops, TV)
         self.detected_objects = {}  # Track detected objects
         self.object_classes = ['bag', 'handbag', 'backpack', 'mobile phone', 'cell phone', 'laptop', 'monitor', 'tv', 'screen']
+        self.last_objects_frame_id = None  # Cache frame ID for object detection
+        self.last_objects_results = {}  # Cache results to avoid re-detecting same frame
 
         # Recent face detections for live display
         self.recent_detections = []
@@ -396,6 +399,7 @@ class PersonDetector:
     def detect_objects_in_frame(self, frame: np.ndarray) -> dict:
         """
         Detect objects like bags, phones, laptops, TV in the frame
+        Caches results to avoid detecting the same frame multiple times
         Returns dict with object names and their bounding boxes
         """
         objects_found = {}
@@ -404,6 +408,13 @@ class PersonDetector:
             return objects_found
         
         try:
+            # Use frame ID based on memory address to detect frame changes
+            frame_id = id(frame)
+            
+            # Return cached results if same frame
+            if frame_id == self.last_objects_frame_id:
+                return self.last_objects_results
+            
             # Run YOLO detection on entire frame
             results = self.model(frame, conf=0.3)  # Lower confidence for object detection
             
@@ -429,6 +440,10 @@ class PersonDetector:
             # Store detected objects for tracking
             if objects_found:
                 self.detected_objects = objects_found
+            
+            # Cache the results
+            self.last_objects_frame_id = frame_id
+            self.last_objects_results = objects_found
                 
         except Exception as e:
             print(f"Error in object detection: {e}")
@@ -880,8 +895,8 @@ class PersonDetector:
                 x1, y1, x2, y2 = person['box']
                 person_roi = display_frame[int(y1):int(y2), int(x1):int(x2)]
                 
-                # Recognize face within the person ROI
-                employee_info = self.recognize_person_face(person_roi)
+                # Recognize face within the person ROI, passing full frame and person box for object detection
+                employee_info = self.recognize_person_face(person_roi, full_frame=display_frame, person_box=(x1, y1, x2, y2))
                 
                 # Update and check confirmation streak
                 confirmed = False
@@ -1176,7 +1191,7 @@ class PersonDetector:
         except Exception as e:
             print(f"Error drawing person overlay: {e}")
     
-    def recognize_person_face(self, person_roi) -> Optional[dict]:
+    def recognize_person_face(self, person_roi, full_frame=None, person_box=None) -> Optional[dict]:
         """Recognize face in person region of interest with enhanced detection, activity and nearby objects"""
         try:
             if person_roi is None or person_roi.size == 0:
@@ -1186,12 +1201,30 @@ class PersonDetector:
             # Detect activity early so we can include it in the return data
             activity = self.detect_person_activity(person_roi)
             
-            # Detect nearby objects (bags, phones, laptops, etc)
+            # Detect nearby objects from the full frame (not just the small ROI)
             nearby_objects = []
-            if YOLO_AVAILABLE and self.model is not None:
+            if YOLO_AVAILABLE and self.model is not None and full_frame is not None:
                 try:
-                    objects = self.detect_objects_in_frame(person_roi)
-                    nearby_objects = list(objects.keys())
+                    # Detect objects in full frame only once per frame
+                    objects = self.detect_objects_in_frame(full_frame)
+                    # Filter objects that are near this person's bounding box
+                    if person_box and objects:
+                        px1, py1, px2, py2 = person_box
+                        person_center_x = (px1 + px2) / 2
+                        person_center_y = (py1 + py2) / 2
+                        
+                        for obj_key, obj_data in objects.items():
+                            ox1, oy1, ox2, oy2 = obj_data['box']
+                            obj_center_x = (ox1 + ox2) / 2
+                            obj_center_y = (oy1 + oy2) / 2
+                            
+                            # Check if object is within 300 pixels of person (nearby)
+                            distance = ((person_center_x - obj_center_x)**2 + (person_center_y - obj_center_y)**2)**0.5
+                            if distance < 300:
+                                nearby_objects.append(obj_data['name'])
+                        
+                        # Remove duplicates and limit to 3 objects
+                        nearby_objects = list(set(nearby_objects))[:3]
                 except Exception as e:
                     print(f"Error detecting nearby objects: {e}")
 

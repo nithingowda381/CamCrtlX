@@ -821,6 +821,9 @@
                                     <button class="btn-glass btn-primary btn-sm w-100 mt-2" onclick="evaluateModel()">
                                         <i class="fas fa-chart-bar me-2"></i>Evaluate Model Performance
                                     </button>
+                                    <button class="btn-glass btn-info btn-sm w-100 mt-2" onclick="trainDeepModel()">
+                                        <i class="fas fa-brain me-2"></i>Train Deep Learning Model
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -2361,6 +2364,36 @@
             })
             .catch(error => {
                 console.error('Error fetching model stats:', error);
+            });
+        }
+
+        function trainDeepModel() {
+            if (!confirm('This will retrain the deep learning model using all collected face images. It may take a while. Continue?')) {
+                return;
+            }
+
+            addToLog('Starting Deep Learning Model Training...');
+
+            fetch('/api/train_deep_model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToLog('✓ Deep learning model trained successfully!');
+                    alert(data.message);
+                } else {
+                    addToLog(`✗ Training failed: ${data.message}`);
+                    alert('Training failed: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error during deep learning training:', error);
+                addToLog('✗ Error during training');
+                alert('An error occurred during training.');
             });
         }
 

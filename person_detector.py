@@ -131,6 +131,12 @@ class PersonDetector:
         self.confirmed_ids = {}
         self.show_gui_window = False  # Control GUI window visibility
 
+        # Tracking structures
+        self.tracked_people = {}  # id -> {box, first_seen, last_seen, ...}
+        self.tracked_objects = {} # id -> {box, first_seen, last_seen, label, ...}
+        self.next_person_id = 0
+        self.next_object_id = 0
+
     def _load_deep_learning_model(self):
         """Load deep learning face recognition model if available"""
         try:
@@ -878,6 +884,96 @@ class PersonDetector:
             print(f"Fallback face detection error: {e}")
             return False, None
     
+    def _update_trackers(self, current_detections, tracker_dict, next_id_attr_name):
+        """
+        Generic tracker update method.
+        current_detections: list of {'box': (x1, y1, x2, y2), 'confidence': float, 'label': str, ...}
+        tracker_dict: reference to self.tracked_people or self.tracked_objects
+        next_id_attr_name: name of the attribute to increment for new IDs
+        """
+        updated_trackers = {}
+        used_detections = set()
+
+        # Match existing trackers to new detections
+        for obj_id, tracked_obj in tracker_dict.items():
+            tx1, ty1, tx2, ty2 = tracked_obj['box']
+            t_center = ((tx1 + tx2) / 2, (ty1 + ty2) / 2)
+
+            best_match_idx = -1
+            min_dist = float('inf')
+
+            for i, det in enumerate(current_detections):
+                if i in used_detections:
+                    continue
+
+                dx1, dy1, dx2, dy2 = det['box']
+                d_center = ((dx1 + dx2) / 2, (dy1 + dy2) / 2)
+
+                dist = ((t_center[0] - d_center[0])**2 + (t_center[1] - d_center[1])**2)**0.5
+
+                # Threshold for matching (e.g. 150 pixels)
+                if dist < 150 and dist < min_dist:
+                    min_dist = dist
+                    best_match_idx = i
+
+            if best_match_idx != -1:
+                # Update tracker
+                det = current_detections[best_match_idx]
+                tracked_obj['box'] = det['box']
+                tracked_obj['last_seen'] = time.time()
+                tracked_obj['confidence'] = det.get('confidence', tracked_obj.get('confidence', 0))
+                # Update extra data
+                for k, v in det.items():
+                    if k not in ['box', 'confidence']:
+                        tracked_obj[k] = v
+
+                updated_trackers[obj_id] = tracked_obj
+                used_detections.add(best_match_idx)
+            else:
+                # Keep tracker if not expired (e.g. lost for < 1 second)
+                if time.time() - tracked_obj['last_seen'] < 1.0:
+                    updated_trackers[obj_id] = tracked_obj
+
+        # Create new trackers for unmatched detections
+        for i, det in enumerate(current_detections):
+            if i not in used_detections:
+                next_id = getattr(self, next_id_attr_name)
+                setattr(self, next_id_attr_name, next_id + 1)
+
+                new_obj = {
+                    'id': next_id,
+                    'box': det['box'],
+                    'first_seen': time.time(),
+                    'last_seen': time.time(),
+                    'confidence': det.get('confidence', 0)
+                }
+                # Add extra data
+                for k, v in det.items():
+                    if k not in ['box', 'confidence']:
+                        new_obj[k] = v
+
+                updated_trackers[next_id] = new_obj
+
+        # Update the tracker dict in place
+        tracker_dict.clear()
+        tracker_dict.update(updated_trackers)
+
+    def draw_object_overlay(self, frame, x1, y1, x2, y2, label, confidence, duration):
+        """Draw overlay for generic objects"""
+        try:
+            # Draw bounding box
+            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 200, 255), 2)
+
+            # Draw label background
+            label_text = f"{label} {confidence:.2f}"
+            time_text = f"Time: {int(duration)}s"
+
+            cv2.putText(frame, label_text, (int(x1), int(y1) - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 255), 2)
+            cv2.putText(frame, time_text, (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+
+        except Exception as e:
+            print(f"Error drawing object overlay: {e}")
+
     def get_frame_with_detection(self) -> Optional[np.ndarray]:
         """Get current frame with detection overlay and enhanced error handling"""
         if not self.cap or not self.cap.isOpened() or not self.is_running:
@@ -897,17 +993,18 @@ class PersonDetector:
             display_frame = self.current_frame.copy()
             
             # --- Centralized Detection and Recognition Logic ---
-            detected_people = []
+            person_detections = []
             
             # Use YOLO if available, otherwise fall back to Haar Cascade
             if self.model is not None:
                 try:
+                    # Detect persons
                     results = self.model(display_frame, conf=self.confidence_threshold, classes=[0]) # Class 0 is 'person'
                     for result in results:
                         for box in result.boxes:
                             x1, y1, x2, y2 = box.xyxy[0].tolist()
                             confidence = float(box.conf[0])
-                            detected_people.append({'box': (x1, y1, x2, y2), 'confidence': confidence})
+                            person_detections.append({'box': (x1, y1, x2, y2), 'confidence': confidence, 'label': 'person'})
                 except Exception as e:
                     print(f"Error during YOLO detection: {e}")
             else:
@@ -916,13 +1013,20 @@ class PersonDetector:
                 faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
                 for (fx, fy, fw, fh) in faces:
                     # Treat the detected face area as a "person" box
-                    detected_people.append({'box': (fx, fy, fx + fw, fy + fh), 'confidence': 0.0})
+                    person_detections.append({'box': (fx, fy, fx + fw, fy + fh), 'confidence': 0.0, 'label': 'person'})
 
-            # --- Process all detected people ---
+            # --- Update Person Tracker ---
+            self._update_trackers(person_detections, self.tracked_people, 'next_person_id')
+
+            # --- Process tracked people ---
             self._decay_streaks() # Decay all streaks once per frame
 
-            for person in detected_people:
-                x1, y1, x2, y2 = person['box']
+            for p_id, p_data in self.tracked_people.items():
+                # Skip if not seen recently (lost)
+                if time.time() - p_data['last_seen'] > 0.5:
+                    continue
+
+                x1, y1, x2, y2 = p_data['box']
                 person_roi = display_frame[int(y1):int(y2), int(x1):int(x2)]
                 
                 # Recognize face within the person ROI, passing full frame and person box for object detection
@@ -938,8 +1042,11 @@ class PersonDetector:
                         tentative = not confirmed
                         employee_info['tentative'] = tentative
 
+                # Calculate duration
+                duration = time.time() - p_data['first_seen']
+
                 # Draw overlay for this person
-                self.draw_person_overlay(display_frame, x1, y1, x2, y2, person['confidence'], employee_info)
+                self.draw_person_overlay(display_frame, x1, y1, x2, y2, p_data['confidence'], employee_info, duration=duration)
 
                 # Log attendance only when confirmed
                 if confirmed and employee_info:
@@ -953,6 +1060,38 @@ class PersonDetector:
                             employee_info,
                             employee_info['confidence']
                         )
+
+            # --- Process Objects ---
+            # detect_objects_in_frame is called inside recognize_person_face -> which updates cache
+            # But we need to make sure we get the objects even if no people are recognized
+            # Or retrieve them from cache if they were computed
+
+            # Since detect_objects_in_frame caches by frame ID, we can just call it again
+            objects_found = self.detect_objects_in_frame(display_frame)
+
+            object_detections = []
+            if objects_found:
+                for obj_key, obj_val in objects_found.items():
+                    object_detections.append({
+                        'box': obj_val['box'],
+                        'confidence': obj_val['confidence'],
+                        'label': obj_val['name']
+                    })
+
+            # --- Update Object Tracker ---
+            self._update_trackers(object_detections, self.tracked_objects, 'next_object_id')
+
+            # --- Draw Object Overlays ---
+            for o_id, o_data in self.tracked_objects.items():
+                 # Skip if not seen recently
+                if time.time() - o_data['last_seen'] > 0.5:
+                    continue
+
+                # If object is very close to a person, it might be drawn as "Nearby object" by draw_person_overlay
+                # But here we draw independent object boxes too, as requested
+                x1, y1, x2, y2 = o_data['box']
+                duration = time.time() - o_data['first_seen']
+                self.draw_object_overlay(display_frame, x1, y1, x2, y2, o_data['label'], o_data['confidence'], duration)
             
             # Add general status overlay
             if self.overlays_enabled:
@@ -1086,7 +1225,7 @@ class PersonDetector:
         except Exception as e:
             print(f"Error adding overlay: {e}")
     
-    def draw_person_overlay(self, frame, x1, y1, x2, y2, confidence, employee_info):
+    def draw_person_overlay(self, frame, x1, y1, x2, y2, confidence, employee_info, duration=None):
         """Draw person overlay with name, activity and status on the video frame"""
         try:
             tentative = False
@@ -1097,6 +1236,13 @@ class PersonDetector:
             person_roi = frame[int(y1):int(y2), int(x1):int(x2)]
             activity = self.detect_person_activity(person_roi) if person_roi.size > 0 else 'unknown'
             
+            # Format duration string
+            duration_str = ""
+            if duration is not None:
+                minutes = int(duration // 60)
+                seconds = int(duration % 60)
+                duration_str = f"Time: {minutes:02d}:{seconds:02d}"
+
             # Activity emoji mapping
             activity_emoji = {
                 'standing': '🧑‍💼',
@@ -1145,6 +1291,13 @@ class PersonDetector:
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.5, (0, 200, 200), 2)
 
+                # Duration label
+                if duration_str:
+                     cv2.putText(frame, duration_str,
+                                (int(x1), int(y1)+35),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.6, (0, 255, 0), 2)
+
             # Tentative (not yet confirmed)
             elif employee_info and tentative:
                 box_color = (0, 140, 255)  # Orange
@@ -1173,6 +1326,13 @@ class PersonDetector:
                                 (int(x1), int(y1)+15),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.5, (0, 200, 200), 2)
+
+                # Duration label
+                if duration_str:
+                     cv2.putText(frame, duration_str,
+                                (int(x1), int(y1)+35),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.6, (0, 140, 255), 2)
 
             # Unknown
             else:
@@ -1211,6 +1371,13 @@ class PersonDetector:
                                 (int(x1), int(y1)+15),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.5, (0, 150, 255), 2)
+
+                # Duration label
+                if duration_str:
+                     cv2.putText(frame, duration_str,
+                                (int(x1), int(y1)+35),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.6, (0, 0, 255), 2)
 
             # Draw rectangle around person with appropriate color
             cv2.rectangle(frame,

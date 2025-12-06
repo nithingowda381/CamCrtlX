@@ -18,7 +18,6 @@ Requirements:
 
 import os
 import cv2
-import dlib
 import numpy as np
 import pickle
 from typing import List, Tuple, Dict
@@ -32,20 +31,27 @@ warnings.filterwarnings("ignore")
 class DeepFaceTrainer:
     def __init__(self):
         # Initialize dlib's face detector and recognition model
-        self.detector = dlib.get_frontal_face_detector()
-
-        # Use dlib's face recognition model (128D embeddings)
         try:
-            self.predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
-            self.face_recognizer = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
-            print("✓ Deep learning face recognition models loaded successfully")
-        except Exception as e:
-            print(f"✗ Error loading dlib models: {e}")
-            print("Please download the required models:")
-            print("  - shape_predictor_68_face_landmarks.dat")
-            print("  - dlib_face_recognition_resnet_model_v1.dat")
-            print("From: http://dlib.net/files/")
-            raise
+            import dlib
+            self.dlib = dlib
+            self.detector = dlib.get_frontal_face_detector()
+
+            # Use dlib's face recognition model (128D embeddings)
+            try:
+                self.predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+                self.face_recognizer = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
+                print("✓ Deep learning face recognition models loaded successfully")
+            except Exception as e:
+                print(f"✗ Error loading dlib models: {e}")
+                print("Please download the required models:")
+                print("  - shape_predictor_68_face_landmarks.dat")
+                print("  - dlib_face_recognition_resnet_model_v1.dat")
+                print("From: http://dlib.net/files/")
+                raise
+        except ImportError:
+             print("✗ dlib library not found. Deep learning training unavailable.")
+             self.detector = None
+             self.face_recognizer = None
 
         self.embeddings = []
         self.labels = []
@@ -78,6 +84,9 @@ class DeepFaceTrainer:
 
     def extract_face_embedding(self, image_path: str) -> Tuple[np.ndarray, bool]:
         """Extract 128D face embedding from an image"""
+        if self.detector is None:
+            return None, False
+
         try:
             # Load image
             img = cv2.imread(image_path)
@@ -219,6 +228,10 @@ class DeepFaceTrainer:
     def train_and_save(self):
         """Main training function"""
         print("=== Deep Learning Face Recognition Training ===\n")
+
+        if self.detector is None:
+             print("✗ dlib is not available. Cannot proceed with training.")
+             return False
 
         # Load training data
         if not self.load_training_data():

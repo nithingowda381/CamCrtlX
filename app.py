@@ -28,6 +28,7 @@ import sqlite3
 import time
 from database import DatabaseManager, get_profile_settings, get_user_profile_data
 from ml_evaluator import MLModelEvaluator
+from train_face_model import DeepFaceTrainer
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 try:
@@ -2047,6 +2048,34 @@ def capture_training_image():
         return jsonify({
             'success': False,
             'message': f'Error capturing training image: {str(e)}'
+        })
+
+@app.route('/api/train_deep_model', methods=['POST'])
+@login_required
+def train_deep_model():
+    """Trigger Deep Learning Face Model Training"""
+    try:
+        trainer = DeepFaceTrainer()
+        success = trainer.train_and_save()
+
+        if success:
+            # Attempt to reload the deep learning model in the detector if possible
+            if hasattr(detector, '_load_deep_learning_model'):
+                detector._load_deep_learning_model()
+
+            return jsonify({
+                'success': True,
+                'message': 'Deep learning model trained and saved successfully!'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Training failed. Check server logs.'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error triggering training: {str(e)}'
         })
 
 @app.route('/api/train_model', methods=['POST'])

@@ -30,6 +30,7 @@ warnings.filterwarnings("ignore")
 
 class DeepFaceTrainer:
     def __init__(self):
+        self.dlib_available = False
         # Initialize dlib's face detector and recognition model
         try:
             import dlib
@@ -40,6 +41,7 @@ class DeepFaceTrainer:
             try:
                 self.predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
                 self.face_recognizer = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
+                self.dlib_available = True
                 print("✓ Deep learning face recognition models loaded successfully")
             except Exception as e:
                 print(f"✗ Error loading dlib models: {e}")
@@ -47,9 +49,11 @@ class DeepFaceTrainer:
                 print("  - shape_predictor_68_face_landmarks.dat")
                 print("  - dlib_face_recognition_resnet_model_v1.dat")
                 print("From: http://dlib.net/files/")
-                raise
+                self.detector = None
+                self.face_recognizer = None
         except ImportError:
              print("✗ dlib library not found. Deep learning training unavailable.")
+             print("ℹ Using standard LBPH recognition only.")
              self.detector = None
              self.face_recognizer = None
 
@@ -229,8 +233,13 @@ class DeepFaceTrainer:
         """Main training function"""
         print("=== Deep Learning Face Recognition Training ===\n")
 
+        if not self.dlib_available:
+             print("✗ dlib is not available. Cannot proceed with DEEP LEARNING training.")
+             print("ℹ Standard LBPH training is handled automatically by the system.")
+             return False
+
         if self.detector is None:
-             print("✗ dlib is not available. Cannot proceed with training.")
+             print("✗ dlib components failed to load. Cannot proceed.")
              return False
 
         # Load training data
@@ -279,6 +288,7 @@ def main():
             print("You can now use this model for more accurate face recognition.")
         else:
             print("\n❌ Training failed. Please check the errors above.")
+            # If dlib is missing, this is expected.
 
     except Exception as e:
         print(f"\n❌ Training error: {e}")

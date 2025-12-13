@@ -2056,6 +2056,14 @@ def train_deep_model():
     """Trigger Deep Learning Face Model Training"""
     try:
         trainer = DeepFaceTrainer()
+
+        # Check if dlib is available before trying to train
+        if not getattr(trainer, 'dlib_available', False):
+             return jsonify({
+                'success': False,
+                'message': 'Deep learning libraries (dlib) not installed. System is using standard recognition which updates automatically.'
+            })
+
         success = trainer.train_and_save()
 
         if success:

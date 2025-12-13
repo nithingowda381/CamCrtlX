@@ -2,6 +2,12 @@ import cv2
 import numpy as np
 import os
 import torch
+import warnings
+import pickle
+import time
+import sqlite3
+from datetime import datetime, timedelta
+import base64
 
 # Patch torch.load for PyTorch 2.6+ to support YOLO models
 original_torch_load = torch.load
@@ -18,22 +24,14 @@ try:
     YOLO_AVAILABLE = True
 except Exception as e:
     YOLO_AVAILABLE = False
-import threading
-import time
-from typing import Optional, Tuple, List
-import sqlite3
-from datetime import datetime, timedelta
-import os
-import base64
-import warnings
-import pickle
+    print(f"[WARNING] Ultralytics not found. Object detection will be disabled. Error: {e}")
 
-# Suppress known resource_tracker semaphore leak warnings coming from loky/joblib at shutdown
+# Suppress known resource_tracker semaphore leak warnings
 warnings.filterwarnings(
     "ignore",
     message=r"resource_tracker: There appear to be .* leaked semaphore objects to clean up at shutdown",
 )
-warnings.filterwarnings("ignore", category=UserWarning)  # Suppress other UserWarnings from loky
+warnings.filterwarnings("ignore", category=UserWarning)
 
 class PersonDetector:
     def __init__(self, model_path: str = 'yolov8n.pt', confidence_threshold: float = 0.5):
@@ -56,6 +54,8 @@ class PersonDetector:
 
         # Face recognition setup
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        if self.face_cascade.empty():
+             print("[ERROR] Failed to load haarcascade_frontalface_default.xml")
 
         # Try to load deep learning model first, fall back to LBPH
         self.deep_learning_model = None
@@ -77,9 +77,8 @@ class PersonDetector:
         self.action_display_time = {}  # When to stop showing action text
         
         # Activity detection with OpenCV
-        self.pose_detector = None
         self.person_activities = {}  # Track activity for each detected person
-        self._init_pose_detector()
+        # Note: Previous version used 'lbpcascade_anon_face.xml' for hand detection but it was unused and caused errors. Removed.
         
         # Object detection (bags, phones, laptops, TV)
         self.detected_objects = {}  # Track detected objects
@@ -100,21 +99,13 @@ class PersonDetector:
         # Allow low-confidence matches when explicitly enabled via env var (for debugging)
         self.allow_low_confidence = os.environ.get('ALLOW_LOW_CONFIDENCE', '0') == '1'
         # Minimum similarity percent to accept a recognized label as known
-        # This prevents false positives where the recognizer always returns the
-        # best label even for poor matches. Higher = stricter.
-        # Live video LBPH distances (160-200) map to 0-20% similarity
-        # Training images LBPH distances (0) map to 100% similarity
-        # So we need a VERY low threshold to accept matches in live video
         try:
             env_val = float(os.environ.get('MIN_SIMILARITY_PERCENT', '5'))
-            # Ignore unreasonably high values from env (like 60 from .env)
-            # Use 5% as absolute minimum for live video - LBPH distances 170-180 = 10-15%
+            # Use 5% as absolute minimum for live video
             self.min_similarity_percent = max(5.0, min(env_val, 10.0))
         except Exception:
             self.min_similarity_percent = 5.0
-        # Confirmation streaks: require the same label to be seen N times within
-        # a short window before treating it as confirmed. Helps avoid random
-        # single-frame false positives.
+        # Confirmation streaks
         try:
             self.confirmation_required = int(os.environ.get('CONFIRMATION_REQUIRED', '3'))
         except Exception:
@@ -140,6 +131,9 @@ class PersonDetector:
     def _load_deep_learning_model(self):
         """Load deep learning face recognition model if available"""
         try:
+            # Check if dlib is available first
+            import dlib
+
             if os.path.exists('deep_face_model.pkl'):
                 with open('deep_face_model.pkl', 'rb') as f:
                     model_data = pickle.load(f)
@@ -151,6 +145,8 @@ class PersonDetector:
                     print(f"  Model type: {model_data.get('model_type')}")
                     print(f"  Trained employees: {len(self.employee_labels)}")
                     return True
+        except ImportError:
+            print("ℹ dlib not installed. Deep learning features disabled.")
         except Exception as e:
             print(f"Warning: Could not load deep learning model: {e}")
 
@@ -205,28 +201,19 @@ class PersonDetector:
                     best_label = min(label_dist, key=label_dist.get)
                     best_score = float(label_dist[best_label])
 
-                    # Improved normalization: convert L2 distance to confidence where higher is better
-                    # Lower distance = higher confidence, scale to 0-100 range
+                    # Improved normalization
                     try:
-                        # Use a more accurate scaling based on typical face distances
-                        # Max possible L2 distance for 100x100 grayscale image is ~255*sqrt(10000) ≈ 25500
                         max_possible_dist = 255.0 * np.sqrt(100*100)  # ≈ 25500
-                        # Higher confidence for lower distance
                         normalized_confidence = 100.0 - (best_score / max_possible_dist) * 100.0
-                        # Clamp to reasonable range
                         normalized_confidence = max(0.0, min(100.0, normalized_confidence))
                     except Exception:
-                        normalized_confidence = max(0.0, min(100.0, 100.0 - best_score))  # fallback
+                        normalized_confidence = max(0.0, min(100.0, 100.0 - best_score))
 
-                    print(f"DummyRecognizer: best_label={best_label}, best_score={best_score:.2f}, normalized_confidence={normalized_confidence:.2f}")
-
-                    # Return label and a normalized confidence (higher is better)
                     return best_label, float(normalized_confidence)
 
             self.face_recognizer = DummyRecognizer()
 
     def __del__(self):
-        # Attempt to clean up resources to avoid leaked semaphores on shutdown
         try:
             if hasattr(self, 'cap') and self.cap:
                 try:
@@ -235,7 +222,6 @@ class PersonDetector:
                     pass
             if hasattr(self, 'model') and self.model is not None:
                 try:
-                    # ultralytics YOLO has a close method in some versions
                     if hasattr(self.model, 'close'):
                         self.model.close()
                 except Exception:
@@ -250,29 +236,17 @@ class PersonDetector:
     def start_stream(self, stream_url) -> bool:
         """Start the video stream with enhanced camera connection logic"""
         try:
-            # Handle different types of video sources
             if isinstance(stream_url, str) and stream_url.isdigit():
-                # String that represents a camera index
                 video_source = int(stream_url)
             elif isinstance(stream_url, int):
-                # Already an integer (camera index)
                 video_source = stream_url
             else:
-                # String URL (RTSP, HTTP, file path, etc.)
                 video_source = stream_url
             
             print(f"Attempting to connect to video source: {video_source}")
             
-            # For webcam sources, try multiple backends and camera indices
             if isinstance(video_source, int):
-                # List of backends to try in order of preference for Windows
-                backends = [
-                    cv2.CAP_MSMF,       # Microsoft Media Foundation (works on this system)
-                    cv2.CAP_DSHOW,      # DirectShow
-                    cv2.CAP_ANY         # Any available backend
-                ]
-                
-                # Try different camera indices if source is 0
+                backends = [cv2.CAP_MSMF, cv2.CAP_DSHOW, cv2.CAP_ANY]
                 camera_indices = [video_source] if video_source != 0 else [0, 1, 2]
                 
                 success = False
@@ -285,17 +259,13 @@ class PersonDetector:
                             self.cap = cv2.VideoCapture(cam_index, backend)
 
                             if self.cap.isOpened():
-                                # Add a small delay to let camera initialize
                                 import time
                                 time.sleep(0.5)
-
-                                # Set properties for better performance
                                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
                                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                                 self.cap.set(cv2.CAP_PROP_FPS, 30)
-                                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer size for real-time
+                                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-                                # Test if we can read a frame
                                 ret, frame = self.cap.read()
                                 if ret and frame is not None and frame.size > 0:
                                     print(f"Successfully connected to camera {cam_index} with backend {backend}")
@@ -313,15 +283,11 @@ class PersonDetector:
                 print("Failed to connect to any webcam with any backend")
                 return False
             else:
-                # For URL/file sources, use default backend
                 self.cap = cv2.VideoCapture(video_source)
-                
-                # Test if source is accessible
                 if not self.cap.isOpened():
                     print(f"Failed to open video source: {video_source}")
                     return False
                 
-                # Try to read a frame to verify the connection
                 ret, frame = self.cap.read()
                 if not ret or frame is None or frame.size == 0:
                     print(f"Failed to read frame from video source: {video_source}")
@@ -342,17 +308,6 @@ class PersonDetector:
         """Enable or disable video overlays"""
         self.overlays_enabled = enabled
         print(f"Video overlays {'enabled' if enabled else 'disabled'}")
-    
-    def _init_pose_detector(self):
-        """Initialize activity detector (OpenCV-based without external dependencies)"""
-        try:
-            # Load hand cascade for detecting if person is using phone
-            hand_cascade_path = cv2.data.haarcascades + 'lbpcascade_anon_face.xml'
-            self.hand_cascade = cv2.CascadeClassifier(hand_cascade_path)
-            print("✓ Activity detector initialized (using OpenCV)")
-        except Exception as e:
-            print(f"Warning: Could not initialize activity detector: {e}")
-            self.hand_cascade = None
     
     def detect_person_activity(self, frame_roi: np.ndarray) -> str:
         """
@@ -376,7 +331,6 @@ class PersonDetector:
             face = max(faces, key=lambda f: f[2] * f[3])  # Sort by area
             fx, fy, fw, fh = face
             face_center_y = fy + fh / 2
-            face_center_x = fx + fw / 2
             
             # Analyze ROI structure to determine activity
             # Check if face is in upper part of ROI (looking down/at phone)
@@ -388,12 +342,6 @@ class PersonDetector:
                 lower_brightness = np.mean(lower_roi)
             else:
                 lower_brightness = 0
-            
-            upper_roi = gray_roi[:int(fy), :]
-            if len(upper_roi) > 0 and upper_roi.size > 0:
-                upper_brightness = np.mean(upper_roi)
-            else:
-                upper_brightness = 0
             
             full_brightness = np.mean(gray_roi)
             
@@ -409,7 +357,6 @@ class PersonDetector:
                 return 'phone'
             elif 0.3 <= face_position_ratio <= 0.7:
                 # Face in middle - standing or walking
-                # Check for motion blur or body visibility
                 return 'standing'
             else:
                 return 'unknown'
@@ -450,9 +397,6 @@ class PersonDetector:
                         confidence = float(box.conf[0])
                         detected_count += 1
                         
-                        # Debug: Log all detected objects
-                        print(f"[DEBUG] Detected: {class_name} (conf: {confidence:.2f})")
-                        
                         # Check if detected object is in our interest list
                         is_match = any(obj_type.lower() in class_name.lower() for obj_type in self.object_classes)
                         if is_match:
@@ -464,14 +408,6 @@ class PersonDetector:
                                 'confidence': confidence,
                                 'box': (x1, y1, x2, y2)
                             }
-                            # Debug: Log matched objects
-                            print(f"[DEBUG] MATCHED: {class_name}")
-                        else:
-                            print(f"[DEBUG] NO MATCH: {class_name} (not in {self.object_classes})")
-            
-            # Log detection summary
-            if detected_count == 0:
-                print(f"[DEBUG] No objects detected in frame")
             
             # Store detected objects for tracking
             if objects_found:
@@ -545,27 +481,18 @@ class PersonDetector:
                 if hasattr(cv2, 'face'):
                     self.face_recognizer = cv2.face.LBPHFaceRecognizer_create()
                 else:
-                    # Re-initialize the dummy recognizer
                     self.face_recognizer.__init__()
 
 
         except Exception as e:
             print(f"An error occurred in load_employee_faces: {e}")
-            import traceback
-            traceback.print_exc()
 
     def _load_recognition_threshold(self) -> float:
-        """Load recognition threshold from saved trained model config if available.
-
-        Returns a threshold value where LOWER recognizer confidence is better (LBPH).
-        Default to 70 (compatible with FaceRecognitionDB defaults).
-        """
+        """Load recognition threshold from saved trained model config if available."""
         try:
             model_yaml = 'static/trained_face_model.yml'
             if os.path.exists(model_yaml):
-                # Prefer yaml if installed, otherwise fallback to a simple regex parse
                 try:
-                    # import yaml via importlib so static analyzers don't require it
                     import importlib
                     yaml_spec = importlib.util.find_spec('yaml')
                     yaml = importlib.import_module('yaml') if yaml_spec is not None else None
@@ -576,50 +503,44 @@ class PersonDetector:
                             cfg = data.get('opencv_lbphfaces', {})
                             thr = cfg.get('threshold')
                             if thr is not None:
-                                try:
-                                    return float(thr)
-                                except Exception:
-                                    pass
+                                return float(thr)
                     else:
-                        # simple regex fallback to find a line like 'threshold: 80.0'
                         import re
                         with open(model_yaml, 'r') as f:
                             content = f.read()
                         m = re.search(r"threshold\s*:\s*([0-9]+(?:\.[0-9]+)?)", content)
                         if m:
-                            try:
-                                return float(m.group(1))
-                            except Exception:
-                                pass
+                            return float(m.group(1))
                 except Exception:
-                    # file read / parse error - ignore and fall back
                     pass
         except Exception:
             pass
-        # sensible default
         return 70.0
     
-    def recognize_face(self, face_img) -> Tuple[Optional[int], float]:
+    def recognize_face(self, face_img) -> tuple:
         """Recognize face and return employee DB id and confidence percent.
-
-        Uses deep learning model if available, otherwise falls back to LBPH.
+        Returns None or tuple (db_id, confidence).
         """
         try:
             # If we don't have any labeled employees loaded, bail out early
             if len(self.employee_labels) == 0:
                 return None, 0.0
 
-            # Use deep learning model if available
+            # Use deep learning model if available AND dlib is installed
             if self.deep_learning_model is not None:
-                return self._recognize_face_deep_learning(face_img)
-            else:
-                return self._recognize_face_lbph(face_img)
+                try:
+                    import dlib
+                    return self._recognize_face_deep_learning(face_img)
+                except ImportError:
+                    pass # Fallback to LBPH
+
+            return self._recognize_face_lbph(face_img)
 
         except Exception as e:
             print(f"Error in face recognition: {e}")
             return None, 0.0
 
-    def _recognize_face_deep_learning(self, face_img) -> Tuple[Optional[int], float]:
+    def _recognize_face_deep_learning(self, face_img) -> tuple:
         """Recognize face using deep learning embeddings"""
         try:
             import dlib
@@ -632,7 +553,6 @@ class PersonDetector:
 
             # Convert grayscale face_img to RGB for dlib
             if len(face_img.shape) == 2:
-                # Convert grayscale to RGB by duplicating channels
                 rgb_face = cv2.cvtColor(face_img, cv2.COLOR_GRAY2RGB)
             else:
                 rgb_face = face_img
@@ -662,88 +582,44 @@ class PersonDetector:
             closest_distance = distances[0][0]
             predicted_label = self.deep_learning_model['labels'][indices[0][0]]
 
-            # Convert distance to confidence (lower distance = higher confidence)
-            # Typical good match distance is < 0.6, bad match > 0.6
+            # Convert distance to confidence
             max_distance = 1.0  # Empirical threshold
             confidence_percent = max(0.0, 100.0 - (closest_distance / max_distance) * 100.0)
-
-            print(f"Deep learning recognition: label={predicted_label}, distance={closest_distance:.3f}, confidence={confidence_percent:.2f}%")
 
             # Only return match if confidence is above threshold
             if confidence_percent >= self.min_similarity_percent:
                 return int(predicted_label), confidence_percent
             else:
-                print(f"Rejected match: confidence {confidence_percent:.2f}% < {self.min_similarity_percent}%")
                 return None, confidence_percent
 
         except Exception as e:
             print(f"Error in deep learning recognition: {e}")
             return None, 0.0
 
-    def _recognize_face_lbph(self, face_img) -> Tuple[Optional[int], float]:
+    def _recognize_face_lbph(self, face_img) -> tuple:
         """Recognize face using traditional LBPH method"""
         try:
-            # Determine threshold (lower is better for LBPH/predict confidence)
-            threshold = self._load_recognition_threshold()
-
             try:
                 label, confidence = self.face_recognizer.predict(face_img)
             except Exception as e:
-                print(f"Recognizer predict error: {e}")
+                # print(f"Recognizer predict error: {e}")
                 return None, 0.0
 
-            # Log raw prediction for debugging
-            print(f"LBPH predict -> label: {label}, confidence: {confidence:.2f}, threshold: {threshold:.2f}, min_similarity: {self.min_similarity_percent:.2f}")
-
-            # Handle confidence mapping based on recognizer type
             if hasattr(self.face_recognizer, 'predict') and 'DummyRecognizer' in str(type(self.face_recognizer)):
-                # DummyRecognizer returns confidence where higher is better (0-100)
                 confidence_percent = float(confidence)
             else:
-                # LBPH: lower numeric 'confidence' is better. Convert to higher is better percentage.
-                # A good match has a low distance (e.g., < 50). A bad match has a high distance (e.g., > 200).
-                # We will map this so that a distance of 0 is 100% confidence, and a distance of `max_distance_for_scaling` is 0% confidence.
-                # This creates a more linear and predictable similarity score.
                 try:
                     # Map the distance to a 0-100 similarity score.
-                    # A lower distance score from predict() is a better match.
+                    # LBPH distance: 0 (exact) -> 200 (completely different)
                     distance = float(confidence)
-
-                    # If distance is 0, it's a perfect match.
-                    # If distance is high, it's a poor match.
-                    # Empirically, LBPH distances for same person typically < 50-100
-                    # For different persons or poor quality: 150-500+
-                    # Using 200 as the threshold for 0% similarity (more generous than 150)
                     max_distance_for_scaling = 200.0
-
                     similarity = 100.0 - (distance / max_distance_for_scaling) * 100.0
-
-                    # Clamp the value between 0 and 100.
                     confidence_percent = max(0.0, min(100.0, similarity))
 
                 except Exception:
                     confidence_percent = 0.0
 
-            # confidence_percent is already set above
-
-            # If USE_THRESHOLD env var is set, fall back to the previous rejection behavior
-            if os.environ.get('USE_THRESHOLD', '0') == '1':
-                if confidence < threshold:
-                    return int(label), confidence_percent
-                else:
-                    # Not a good match per legacy threshold
-                    if self.allow_low_confidence:
-                        try:
-                            return int(label), 0.0
-                        except Exception:
-                            return None, 0.0
-                    return None, 0.0
-
-            # Default behavior: always return the best label and the computed percent
-            try:
-                return int(label), confidence_percent
-            except Exception:
-                return None, 0.0
+            return int(label), confidence_percent
         except Exception as e:
             print(f"Error in LBPH face recognition: {e}")
             return None, 0.0
@@ -754,20 +630,15 @@ class PersonDetector:
             current_time = datetime.now()
             action_performed = None
             
-            print(f"Attempting to log attendance for employee: {employee_data.get('name')} (ID: {employee_data.get('employee_id')})")
-            
             # Check cooldown period
             if employee_db_id in self.last_recognition_time:
                 time_diff = (current_time - self.last_recognition_time[employee_db_id]).total_seconds()
                 if time_diff < self.recognition_cooldown:
-                    # Return the current stored action if within cooldown
-                    print(f"Within cooldown period ({time_diff:.1f}s < {self.recognition_cooldown}s)")
                     return self.current_actions.get(employee_db_id, None)
             
             # Update last recognition time
             self.last_recognition_time[employee_db_id] = current_time
             
-            # Log to attendance database
             conn = sqlite3.connect('attendance.db')
             cursor = conn.cursor()
             
@@ -780,7 +651,6 @@ class PersonDetector:
             """, (employee_data['employee_id'], today))
             
             active_session = cursor.fetchone()
-            print(f"Active session check for {employee_data['employee_id']} on {today}: {active_session}")
             
             if active_session:
                 # Employee has active session - this could be checkout
@@ -788,19 +658,15 @@ class PersonDetector:
                 start_datetime = datetime.fromisoformat(start_time)
                 work_duration = (current_time - start_datetime).total_seconds() / 3600  # hours
                 
-                print(f"Found active session. Work duration: {work_duration:.2f} hours")
-                
-                # Allow checkout after minimum 5 minutes (more reasonable for testing)
-                if work_duration >= 0.083:  # 5 minutes = 0.083 hours
+                # Allow checkout after minimum 5 minutes
+                if work_duration >= 0.083:
                     cursor.execute("""
                         UPDATE work_log SET end_time = ?, hours = ? WHERE id = ?
                     """, (current_time.isoformat(), round(work_duration, 2), session_id))
                     
                     action_performed = "CHECK-OUT"
-                    print(f"Checkout logged for {employee_data['name']} - Duration: {work_duration:.2f} hours")
                 else:
-                    action_performed = "CHECKED-IN"  # Already checked in, show current status
-                    print(f"Employee already checked in (duration too short: {work_duration:.2f}h)")
+                    action_performed = "CHECKED-IN"
             else:
                 # No active session - this is check-in
                 cursor.execute("""
@@ -809,22 +675,18 @@ class PersonDetector:
                 """, (employee_data['employee_id'], current_time.isoformat(), today))
                 
                 action_performed = "CHECK-IN"
-                print(f"Check-in logged for {employee_data['name']} at {current_time}")
             
-            # Store the action and set display timeout
             self.current_actions[employee_db_id] = action_performed
             self.action_display_time[employee_db_id] = current_time + timedelta(seconds=5)
             
             conn.commit()
             conn.close()
             
-            print(f"Attendance logged successfully. Action: {action_performed}")
+            print(f"Attendance logged: {employee_data['name']} - {action_performed}")
             return action_performed
             
         except Exception as e:
             print(f"Error logging attendance: {e}")
-            import traceback
-            traceback.print_exc()
             return None
     
     def stop_stream(self):
@@ -833,8 +695,8 @@ class PersonDetector:
         if self.cap:
             self.cap.release()
     
-    def detect_person(self) -> Tuple[bool, Optional[float]]:
-        """Detect if person is present in current frame"""
+    def detect_person(self) -> tuple:
+        """Detect if person is present in current frame. Returns (bool, float)."""
         if not self.cap or not self.cap.isOpened():
             return False, None
         
@@ -848,8 +710,6 @@ class PersonDetector:
         if self.model is not None:
             try:
                 results = self.model(frame, conf=self.confidence_threshold)
-
-                # Check for person class (class 0 in COCO dataset)
                 person_detected = False
                 max_confidence = 0.0
 
@@ -866,10 +726,9 @@ class PersonDetector:
             except Exception as e:
                 print(f"Error running YOLO detection: {e}. Falling back to OpenCV face detection.")
 
-        # Fallback: detect faces in the frame using Haar cascade - treat any face as a person
+        # Fallback: detect faces in the frame using Haar cascade
         try:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # Be strict at full-frame detection to reduce false positives
             faces = self.face_cascade.detectMultiScale(
                 gray,
                 scaleFactor=1.12,
@@ -877,20 +736,12 @@ class PersonDetector:
                 minSize=(48, 48)
             )
             if len(faces) > 0:
-                # Estimate confidence as 0.6 for faces (heuristic)
                 return True, 0.6
             return False, None
         except Exception as e:
-            print(f"Fallback face detection error: {e}")
             return False, None
     
     def _update_trackers(self, current_detections, tracker_dict, next_id_attr_name):
-        """
-        Generic tracker update method.
-        current_detections: list of {'box': (x1, y1, x2, y2), 'confidence': float, 'label': str, ...}
-        tracker_dict: reference to self.tracked_people or self.tracked_objects
-        next_id_attr_name: name of the attribute to increment for new IDs
-        """
         updated_trackers = {}
         used_detections = set()
 
@@ -911,18 +762,15 @@ class PersonDetector:
 
                 dist = ((t_center[0] - d_center[0])**2 + (t_center[1] - d_center[1])**2)**0.5
 
-                # Threshold for matching (e.g. 150 pixels)
                 if dist < 150 and dist < min_dist:
                     min_dist = dist
                     best_match_idx = i
 
             if best_match_idx != -1:
-                # Update tracker
                 det = current_detections[best_match_idx]
                 tracked_obj['box'] = det['box']
                 tracked_obj['last_seen'] = time.time()
                 tracked_obj['confidence'] = det.get('confidence', tracked_obj.get('confidence', 0))
-                # Update extra data
                 for k, v in det.items():
                     if k not in ['box', 'confidence']:
                         tracked_obj[k] = v
@@ -930,11 +778,10 @@ class PersonDetector:
                 updated_trackers[obj_id] = tracked_obj
                 used_detections.add(best_match_idx)
             else:
-                # Keep tracker if not expired (e.g. lost for < 1 second)
                 if time.time() - tracked_obj['last_seen'] < 1.0:
                     updated_trackers[obj_id] = tracked_obj
 
-        # Create new trackers for unmatched detections
+        # Create new trackers
         for i, det in enumerate(current_detections):
             if i not in used_detections:
                 next_id = getattr(self, next_id_attr_name)
@@ -947,24 +794,19 @@ class PersonDetector:
                     'last_seen': time.time(),
                     'confidence': det.get('confidence', 0)
                 }
-                # Add extra data
                 for k, v in det.items():
                     if k not in ['box', 'confidence']:
                         new_obj[k] = v
 
                 updated_trackers[next_id] = new_obj
 
-        # Update the tracker dict in place
         tracker_dict.clear()
         tracker_dict.update(updated_trackers)
 
     def draw_object_overlay(self, frame, x1, y1, x2, y2, label, confidence, duration):
         """Draw overlay for generic objects"""
         try:
-            # Draw bounding box
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 200, 255), 2)
-
-            # Draw label background
             label_text = f"{label} {confidence:.2f}"
             time_text = f"Time: {int(duration)}s"
 
@@ -974,31 +816,24 @@ class PersonDetector:
         except Exception as e:
             print(f"Error drawing object overlay: {e}")
 
-    def get_frame_with_detection(self) -> Optional[np.ndarray]:
+    def get_frame_with_detection(self) -> np.ndarray:
         """Get current frame with detection overlay and enhanced error handling"""
         if not self.cap or not self.cap.isOpened() or not self.is_running:
-            print("Camera not available or not running")
             return None
             
         try:
-            # Read a new frame with timeout handling
             ret, frame = self.cap.read()
             if not ret or frame is None or frame.size == 0:
-                print("Failed to read frame from camera")
                 return None
                 
             self.current_frame = frame
-            
-            # Create a copy of the frame for drawing
             display_frame = self.current_frame.copy()
             
-            # --- Centralized Detection and Recognition Logic ---
+            # --- Detection ---
             person_detections = []
             
-            # Use YOLO if available, otherwise fall back to Haar Cascade
             if self.model is not None:
                 try:
-                    # Detect persons
                     results = self.model(display_frame, conf=self.confidence_threshold, classes=[0]) # Class 0 is 'person'
                     for result in results:
                         for box in result.boxes:
@@ -1008,31 +843,33 @@ class PersonDetector:
                 except Exception as e:
                     print(f"Error during YOLO detection: {e}")
             else:
-                # Fallback to Haar Cascade for face detection if YOLO is not used for person detection
                 gray = cv2.cvtColor(display_frame, cv2.COLOR_BGR2GRAY)
                 faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
                 for (fx, fy, fw, fh) in faces:
-                    # Treat the detected face area as a "person" box
                     person_detections.append({'box': (fx, fy, fx + fw, fy + fh), 'confidence': 0.0, 'label': 'person'})
 
             # --- Update Person Tracker ---
             self._update_trackers(person_detections, self.tracked_people, 'next_person_id')
 
             # --- Process tracked people ---
-            self._decay_streaks() # Decay all streaks once per frame
+            self._decay_streaks()
 
             for p_id, p_data in self.tracked_people.items():
-                # Skip if not seen recently (lost)
                 if time.time() - p_data['last_seen'] > 0.5:
                     continue
 
                 x1, y1, x2, y2 = p_data['box']
+                # Clip coordinates
+                h, w = display_frame.shape[:2]
+                x1, y1 = max(0, x1), max(0, y1)
+                x2, y2 = min(w, x2), min(h, y2)
+
                 person_roi = display_frame[int(y1):int(y2), int(x1):int(x2)]
                 
-                # Recognize face within the person ROI, passing full frame and person box for object detection
+                # Recognize face within the person ROI
                 employee_info = self.recognize_person_face(person_roi, full_frame=display_frame, person_box=(x1, y1, x2, y2))
                 
-                # Update and check confirmation streak
+                # Update streak
                 confirmed = False
                 tentative = False
                 if employee_info and isinstance(employee_info, dict):
@@ -1042,19 +879,17 @@ class PersonDetector:
                         tentative = not confirmed
                         employee_info['tentative'] = tentative
 
-                # Calculate duration
                 duration = time.time() - p_data['first_seen']
 
-                # Draw overlay for this person
                 self.draw_person_overlay(display_frame, x1, y1, x2, y2, p_data['confidence'], employee_info, duration=duration)
 
-                # Log attendance only when confirmed
+                # Log attendance
                 if confirmed and employee_info:
                     db_id = employee_info.get('db_id')
                     now = time.time()
                     last_confirm_expiry = self.confirmed_ids.get(db_id, 0)
                     if now > last_confirm_expiry:
-                        self.confirmed_ids[db_id] = now + 10.0 # 10-second cooldown for logging
+                        self.confirmed_ids[db_id] = now + 10.0
                         self.log_attendance(
                             employee_info['db_id'],
                             employee_info,
@@ -1062,13 +897,7 @@ class PersonDetector:
                         )
 
             # --- Process Objects ---
-            # detect_objects_in_frame is called inside recognize_person_face -> which updates cache
-            # But we need to make sure we get the objects even if no people are recognized
-            # Or retrieve them from cache if they were computed
-
-            # Since detect_objects_in_frame caches by frame ID, we can just call it again
             objects_found = self.detect_objects_in_frame(display_frame)
-
             object_detections = []
             if objects_found:
                 for obj_key, obj_val in objects_found.items():
@@ -1078,46 +907,33 @@ class PersonDetector:
                         'label': obj_val['name']
                     })
 
-            # --- Update Object Tracker ---
             self._update_trackers(object_detections, self.tracked_objects, 'next_object_id')
 
-            # --- Draw Object Overlays ---
             for o_id, o_data in self.tracked_objects.items():
-                 # Skip if not seen recently
                 if time.time() - o_data['last_seen'] > 0.5:
                     continue
 
-                # If object is very close to a person, it might be drawn as "Nearby object" by draw_person_overlay
-                # But here we draw independent object boxes too, as requested
                 x1, y1, x2, y2 = o_data['box']
                 duration = time.time() - o_data['first_seen']
                 self.draw_object_overlay(display_frame, x1, y1, x2, y2, o_data['label'], o_data['confidence'], duration)
             
-            # Add general status overlay
             if self.overlays_enabled:
                 self.add_attendance_overlay(display_frame)
             
-            # Clean up expired action messages
             self.cleanup_expired_actions()
 
-            # Show GUI window if enabled
             if self.show_gui_window:
                 try:
-                    # Resize for a more manageable window size
                     h, w = display_frame.shape[:2]
                     if h > 720:
                         display_frame_resized = cv2.resize(display_frame, (int(w * 720 / h), 720))
                     else:
                         display_frame_resized = display_frame
                     cv2.imshow('CamCtrlX Live Detection', display_frame_resized)
-                    # Check for 'q' key press to close the window
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         self.disable_gui()
-
-                except Exception as e:
-                    # Catch errors if the display environment is not available (e.g., on a headless server)
-                    print(f"Could not display GUI window: {e}")
-                    self.show_gui_window = False # Disable to prevent further errors
+                except Exception:
+                    self.show_gui_window = False
             
             return display_frame
             
@@ -1126,29 +942,19 @@ class PersonDetector:
             return None
     
     def cleanup_expired_actions(self):
-        """Clean up expired action displays"""
         try:
             current_time = datetime.now()
             expired_employees = []
-            
             for employee_id, expire_time in self.action_display_time.items():
                 if current_time > expire_time:
                     expired_employees.append(employee_id)
-            
             for employee_id in expired_employees:
-                if employee_id in self.current_actions:
-                    del self.current_actions[employee_id]
-                if employee_id in self.action_display_time:
-                    del self.action_display_time[employee_id]
-                    
-            if expired_employees:
-                print(f"Cleaned up {len(expired_employees)} expired actions")
-                
-        except Exception as e:
-            print(f"Error cleaning up actions: {e}")
+                self.current_actions.pop(employee_id, None)
+                self.action_display_time.pop(employee_id, None)
+        except Exception:
+            pass
 
     def _decay_streaks(self):
-        """Remove recognition streaks that have not been updated within the confirmation window."""
         try:
             now = time.time()
             remove = []
@@ -1157,22 +963,15 @@ class PersonDetector:
                 if now - last > self.confirmation_window:
                     remove.append(db_id)
             for db_id in remove:
-                try:
-                    del self.recognition_streaks[db_id]
-                except Exception:
-                    pass
-        except Exception as e:
-            print(f"Error decaying streaks: {e}")
+                self.recognition_streaks.pop(db_id, None)
+        except Exception:
+            pass
 
     def _update_recognition_streak(self, db_id: int) -> bool:
-        """Update the streak counter for a given db_id. Returns True when the
-        streak reaches the confirmation_required threshold (i.e., confirmed).
-        """
         try:
             now = time.time()
             data = self.recognition_streaks.get(db_id)
             if data is None:
-                # start a new streak
                 self.recognition_streaks[db_id] = {'count': 1, 'last_seen': now}
                 return False
             else:
@@ -1182,229 +981,129 @@ class PersonDetector:
                 else:
                     data['count'] = 1
                 data['last_seen'] = now
-                # update back
                 self.recognition_streaks[db_id] = data
                 if data['count'] >= self.confirmation_required:
                     return True
                 return False
-        except Exception as e:
-            print(f"Error updating recognition streak: {e}")
+        except Exception:
             return False
     
     def add_attendance_overlay(self, frame):
-        """Add enhanced attendance status overlay to the frame"""
         try:
-            # Add a semi-transparent background for status
             overlay = frame.copy()
-            h, w = frame.shape[:2]
-            
-            # Status background - make it larger for more info
             cv2.rectangle(overlay, (10, 10), (450, 120), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
             
-            # Title
             cv2.putText(frame, "SMART ATTENDANCE SYSTEM", 
                        (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            # Current time
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cv2.putText(frame, f"Time: {current_time}", 
                        (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             
-            # Face detection status
             face_status = "Face Recognition: ACTIVE" if len(self.employee_labels) > 0 else "Face Recognition: NO TRAINING DATA"
             face_color = (0, 255, 0) if len(self.employee_labels) > 0 else (0, 0, 255)
             cv2.putText(frame, face_status, 
                        (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, face_color, 1)
             
-            # Active recognitions count
             active_count = len([action for action in self.current_actions.values() if action])
             cv2.putText(frame, f"Active Actions: {active_count} | Trained Employees: {len(self.employee_labels)}", 
                        (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
             
-        except Exception as e:
-            print(f"Error adding overlay: {e}")
+        except Exception:
+            pass
     
     def draw_person_overlay(self, frame, x1, y1, x2, y2, confidence, employee_info, duration=None):
-        """Draw person overlay with name, activity and status on the video frame"""
         try:
             tentative = False
             if isinstance(employee_info, dict) and employee_info.get('tentative'):
                 tentative = True
 
-            # Detect activity from the ROI
             person_roi = frame[int(y1):int(y2), int(x1):int(x2)]
             activity = self.detect_person_activity(person_roi) if person_roi.size > 0 else 'unknown'
             
-            # Format duration string
             duration_str = ""
             if duration is not None:
                 minutes = int(duration // 60)
                 seconds = int(duration % 60)
                 duration_str = f"Time: {minutes:02d}:{seconds:02d}"
 
-            # Activity emoji mapping
-            activity_emoji = {
-                'standing': '🧑‍💼',
-                'sitting': '🪑',
-                'phone': '📱',
-                'walking': '🚶',
-                'unknown': '❓'
-            }
-            activity_display = activity_emoji.get(activity, '❓')
-
-            # Recognized and confirmed
+            # Known and confirmed
             if employee_info and not tentative:
                 box_color = (0, 255, 0)  # Green
                 name_label = f"{employee_info.get('name', 'Unknown')}"
-                cv2.putText(frame, name_label,
-                            (int(x1), int(y1)-60),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1.0, (0, 255, 0), 3)
-                (name_width, name_height), _ = cv2.getTextSize(name_label, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 3)
-                cv2.rectangle(frame,
-                              (int(x1), int(y1)-70),
-                              (int(x1) + name_width, int(y1)-60 + name_height),
-                              (0, 0, 0), -1)
-                cv2.putText(frame, name_label,
-                            (int(x1), int(y1)-60),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1.0, (0, 255, 0), 3)
+
+                cv2.putText(frame, name_label, (int(x1), int(y1)-60), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 3)
+
                 confidence_label = f"Confidence: {employee_info.get('confidence', 0):.1f}%"
-                cv2.putText(frame, confidence_label,
-                            (int(x1), int(y1)-35),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 255, 0), 2)
-                # Activity label
+                cv2.putText(frame, confidence_label, (int(x1), int(y1)-35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
                 activity_label = f"Activity: {activity.title()}"
-                cv2.putText(frame, activity_label,
-                            (int(x1), int(y1)-10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 255, 0), 2)
+                cv2.putText(frame, activity_label, (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 
-                # Objects label (if any detected)
                 nearby_objects = employee_info.get('nearby_objects', [])
                 if nearby_objects:
-                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])  # Show first 2 objects
-                    cv2.putText(frame, objects_text,
-                                (int(x1), int(y1)+15),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.5, (0, 200, 200), 2)
+                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])
+                    cv2.putText(frame, objects_text, (int(x1), int(y1)+15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 200), 2)
 
-                # Duration label
                 if duration_str:
-                     cv2.putText(frame, duration_str,
-                                (int(x1), int(y1)+35),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.6, (0, 255, 0), 2)
+                     cv2.putText(frame, duration_str, (int(x1), int(y1)+35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-            # Tentative (not yet confirmed)
+            # Tentative
             elif employee_info and tentative:
                 box_color = (0, 140, 255)  # Orange
                 name_label = f"{employee_info.get('name', 'Unknown')} (tentative)"
-                cv2.putText(frame, name_label,
-                            (int(x1), int(y1)-60),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.9, (0, 140, 255), 3)
-                confidence_label = f"Confidence: {employee_info.get('confidence', 0):.1f}%"
-                cv2.putText(frame, confidence_label,
-                            (int(x1), int(y1)-35),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 140, 255), 2)
-                # Activity label
-                activity_label = f"Activity: {activity.title()}"
-                cv2.putText(frame, activity_label,
-                            (int(x1), int(y1)-10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 140, 255), 2)
-                
-                # Objects label (if any detected)
-                nearby_objects = employee_info.get('nearby_objects', [])
-                if nearby_objects:
-                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])  # Show first 2 objects
-                    cv2.putText(frame, objects_text,
-                                (int(x1), int(y1)+15),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.5, (0, 200, 200), 2)
 
-                # Duration label
+                cv2.putText(frame, name_label, (int(x1), int(y1)-60), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 140, 255), 3)
+
+                confidence_label = f"Confidence: {employee_info.get('confidence', 0):.1f}%"
+                cv2.putText(frame, confidence_label, (int(x1), int(y1)-35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 140, 255), 2)
+
+                activity_label = f"Activity: {activity.title()}"
+                cv2.putText(frame, activity_label, (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 140, 255), 2)
+                
                 if duration_str:
-                     cv2.putText(frame, duration_str,
-                                (int(x1), int(y1)+35),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.6, (0, 140, 255), 2)
+                     cv2.putText(frame, duration_str, (int(x1), int(y1)+35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 140, 255), 2)
 
             # Unknown
             else:
                 box_color = (0, 0, 255)  # Red
                 unknown_label = "NOT RECOGNIZED"
-                cv2.putText(frame, unknown_label,
-                            (int(x1), int(y1)-60),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1.0, (0, 0, 255), 3)
-                (unknown_width, unknown_height), _ = cv2.getTextSize(unknown_label, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 3)
-                cv2.rectangle(frame,
-                              (int(x1), int(y1)-70),
-                              (int(x1) + unknown_width, int(y1)-60 + unknown_height),
-                              (0, 0, 0), -1)
-                cv2.putText(frame, unknown_label,
-                            (int(x1), int(y1)-60),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1.0, (0, 0, 255), 3)
+
+                cv2.putText(frame, unknown_label, (int(x1), int(y1)-60), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+
                 confidence_label = f"Confidence: {confidence:.2f}"
-                cv2.putText(frame, confidence_label,
-                            (int(x1), int(y1)-35),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 0, 255), 2)
-                # Activity label for unknown
+                cv2.putText(frame, confidence_label, (int(x1), int(y1)-35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
                 activity_label = f"Activity: {activity.title()}"
-                cv2.putText(frame, activity_label,
-                            (int(x1), int(y1)-10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 0, 255), 2)
+                cv2.putText(frame, activity_label, (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
                 
-                # Objects label for unknown (if any detected)
                 nearby_objects = employee_info.get('nearby_objects', []) if employee_info else []
                 if nearby_objects:
-                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])  # Show first 2 objects
-                    cv2.putText(frame, objects_text,
-                                (int(x1), int(y1)+15),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.5, (0, 150, 255), 2)
+                    objects_text = "Objects: " + ", ".join(nearby_objects[:2])
+                    cv2.putText(frame, objects_text, (int(x1), int(y1)+15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 150, 255), 2)
 
-                # Duration label
                 if duration_str:
-                     cv2.putText(frame, duration_str,
-                                (int(x1), int(y1)+35),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.6, (0, 0, 255), 2)
+                     cv2.putText(frame, duration_str, (int(x1), int(y1)+35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-            # Draw rectangle around person with appropriate color
-            cv2.rectangle(frame,
-                          (int(x1), int(y1)),
-                          (int(x2), int(y2)),
-                          box_color, 3)
+            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), box_color, 3)
 
         except Exception as e:
             print(f"Error drawing person overlay: {e}")
     
-    def recognize_person_face(self, person_roi, full_frame=None, person_box=None) -> Optional[dict]:
+    def recognize_person_face(self, person_roi, full_frame=None, person_box=None) -> dict:
         """Recognize face in person region of interest with enhanced detection, activity and nearby objects"""
         try:
             if person_roi is None or person_roi.size == 0:
                 self._last_face_found = False
                 return None
             
-            # Detect activity early so we can include it in the return data
             activity = self.detect_person_activity(person_roi)
             
-            # Detect nearby objects from the full frame (not just the small ROI)
             nearby_objects = []
             if YOLO_AVAILABLE and self.model is not None and full_frame is not None:
                 try:
-                    # Detect objects in full frame only once per frame
                     objects = self.detect_objects_in_frame(full_frame)
-                    # Filter objects that are near this person's bounding box
                     if person_box and objects:
                         px1, py1, px2, py2 = person_box
                         person_center_x = (px1 + px2) / 2
@@ -1415,20 +1114,16 @@ class PersonDetector:
                             obj_center_x = (ox1 + ox2) / 2
                             obj_center_y = (oy1 + oy2) / 2
                             
-                            # Check if object is within 300 pixels of person (nearby)
                             distance = ((person_center_x - obj_center_x)**2 + (person_center_y - obj_center_y)**2)**0.5
                             if distance < 300:
                                 nearby_objects.append(obj_data['name'])
                         
-                        # Remove duplicates and limit to 3 objects
                         nearby_objects = list(set(nearby_objects))[:3]
                 except Exception as e:
                     print(f"Error detecting nearby objects: {e}")
 
-            # Convert to grayscale for face detection
             gray_roi = cv2.cvtColor(person_roi, cv2.COLOR_BGR2GRAY)
 
-            # Enhanced preprocessing: CLAHE for better lighting robustness and Gaussian blur to reduce noise
             try:
                 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
                 gray_roi = clahe.apply(gray_roi)
@@ -1436,8 +1131,6 @@ class PersonDetector:
             except Exception:
                 gray_roi = cv2.equalizeHist(gray_roi)
 
-            # Detect faces with multiple scale parameters for better detection
-            # Be stricter here to reduce false positives
             faces = self.face_cascade.detectMultiScale(
                 gray_roi,
                 scaleFactor=1.05,
@@ -1446,20 +1139,13 @@ class PersonDetector:
                 maxSize=(400, 400)
             )
 
-            print(f"Face detection: Found {len(faces)} faces in person ROI")
-
             if len(faces) == 0:
-                print("No faces detected in person ROI")
                 self._last_face_found = False
                 return None
 
-            # Use the largest face
             face = max(faces, key=lambda x: x[2] * x[3])
             fx, fy, fw, fh = face
 
-            print(f"Processing face at coordinates: ({fx}, {fy}, {fw}, {fh})")
-
-            # Extract face region with padding proportional to face size
             padding = max(5, int(0.1 * min(fw, fh)))
             fx = max(0, fx - padding)
             fy = max(0, fy - padding)
@@ -1468,95 +1154,66 @@ class PersonDetector:
 
             face_img = gray_roi[fy:fy + fh, fx:fx + fw]
 
-            # Ensure face image is valid
             if face_img.size == 0:
-                print("Invalid face image extracted")
                 self._last_face_found = False
                 return None
 
-            # Resize face for recognition
             face_img = cv2.resize(face_img, (100, 100))
 
-            # Reject faces that are too small or have unlikely aspect ratios (likely false positives)
             try:
-                if fw < 70 or fh < 70:
-                    print(f"Rejected face due to small size: ({fw}x{fh})")
+                if fw < 50 or fh < 50:
                     self._last_face_found = False
                     return None
                 aspect = float(fw) / float(fh) if fh != 0 else 0.0
                 if aspect < 0.8 or aspect > 1.4:
-                    print(f"Rejected face due to unusual aspect ratio: {aspect:.2f}")
                     self._last_face_found = False
                     return None
-
-                # Reject if face crop has very low variance (blank/textureless region)
                 if np.std(face_img) < 20.0:
-                    print(f"Rejected face due to low variance: std={np.std(face_img):.2f}")
                     self._last_face_found = False
                     return None
             except Exception:
                 pass
 
-            # Recognize face
-            employee_db_id, confidence = self.recognize_face(face_img)
+            result = self.recognize_face(face_img)
+            if result:
+                employee_db_id, confidence = result
+            else:
+                employee_db_id, confidence = None, 0.0
 
-            print(f"Face recognition result: employee_db_id={employee_db_id}, confidence={confidence:.2f}")
-
-            # Indicate that a face was found in this ROI
             self._last_face_found = True
 
-            # Store face data for live display (use color crop)
             color_crop = person_roi[fy:fy + fh, fx:fx + fw]
 
-            # Decide whether this prediction is considered a known match
             is_known = False
             try:
-                # If recognizer returned None label treat as unknown
                 if employee_db_id is not None and employee_db_id in self.employee_labels:
-                    # Compare against minimum similarity percent
                     if confidence >= self.min_similarity_percent:
                         is_known = True
-                        print(f"Accepted match for employee {employee_db_id} with confidence {confidence:.2f}% >= {self.min_similarity_percent}%")
-                    else:
-                        print(f"Rejected match for employee {employee_db_id} with confidence {confidence:.2f}% < {self.min_similarity_percent}%")
             except Exception:
                 is_known = False
 
-            # Store detection with explicit known/unknown flag and activity
             self.store_detected_face(face_img, employee_db_id, confidence, color_crop, is_known=is_known, activity=activity, nearby_objects=nearby_objects)
+
             if is_known:
                 employee_data = self.employee_labels[employee_db_id].copy()
                 employee_data['confidence'] = confidence
                 employee_data['db_id'] = employee_db_id
                 employee_data['activity'] = activity
                 employee_data['nearby_objects'] = nearby_objects
-                objects_str = ", ".join(nearby_objects) if nearby_objects else "none"
-                print(f"Employee recognized: {employee_data.get('name', 'Unknown')} (confidence: {confidence:.2f}%, activity: {activity}, objects: {objects_str})")
                 return employee_data
             else:
-                print(f"Prediction for label {employee_db_id} below similarity threshold ({confidence:.2f}% < {self.min_similarity_percent}). Treating as unknown")
                 return None
 
         except Exception as e:
-            print(f"Error in face recognition: {e}")
+            print(f"Error in recognition loop: {e}")
             self._last_face_found = False
             return None
     
     def store_detected_face(self, face_gray, employee_db_id, confidence, face_color, is_known=None, activity='unknown', nearby_objects=None):
-        """Store detected face data for live display
-
-        is_known: optional boolean to explicitly mark whether the detection is a
-        known employee (True) or not (False). If None, the function falls back
-        to checking `employee_db_id in self.employee_labels`.
-        """
         try:
-            import base64
-            
-            # Convert face image to base64 for frontend display
             _, buffer = cv2.imencode('.jpg', face_color)
             face_base64 = base64.b64encode(buffer).decode('utf-8')
             
-            # Determine if face is known or unknown
             if is_known is None:
                 is_known = employee_db_id is not None and employee_db_id in self.employee_labels
             name = "Unknown"
@@ -1567,36 +1224,29 @@ class PersonDetector:
                 if not name:
                     name = employee_data.get('name', 'Unknown')
             
-            # Create detection data
             detection_data = {
                 'name': name,
                 'confidence': confidence if confidence else 0,
                 'image_data': face_base64,
                 'is_known': is_known,
-                'timestamp': time.time() * 1000,  # JavaScript timestamp
+                'timestamp': time.time() * 1000,
                 'activity': activity,
                 'nearby_objects': nearby_objects if nearby_objects else []
             }
             
-            # Add to recent detections
             self.recent_detections.append(detection_data)
-            
-            # Keep only the most recent detections
             if len(self.recent_detections) > self.max_recent_detections:
                 self.recent_detections.pop(0)
-            
-            print(f"Face stored for display: {name} (known: {is_known}, confidence: {confidence:.2f})")
                 
-        except Exception as e:
-            print(f"Error storing detected face: {e}")
+        except Exception:
+            pass
     
     def test_detection(self, image_path: str) -> bool:
         """Test detection on a single image"""
         try:
             results = self.model(image_path, conf=self.confidence_threshold)
             return any(int(box.cls[0]) == 0 for result in results for box in result.boxes)
-        except Exception as e:
-            print(f"Error testing detection: {e}")
+        except Exception:
             return False
     
     def enable_gui(self):
@@ -1609,7 +1259,6 @@ class PersonDetector:
         self.show_gui_window = False
         try:
             cv2.destroyWindow('CamCtrlX Live Detection')
-            cv2.waitKey(1) # Process window close event
-            print("GUI window disabled and destroyed.")
-        except Exception as e:
-            print(f"Error destroying GUI window: {e}")
+            cv2.waitKey(1)
+        except Exception:
+            pass

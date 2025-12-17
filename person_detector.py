@@ -137,6 +137,47 @@ class PersonDetector:
         self.next_person_id = 0
         self.next_object_id = 0
 
+        # Daily persistent tracking
+        self.daily_first_seen = {} # db_id -> timestamp (first seen today)
+        self._load_today_attendance()
+
+    def _load_today_attendance(self):
+        """Load today's attendance records to populate daily_first_seen"""
+        try:
+            conn = sqlite3.connect('attendance.db')
+            cursor = conn.cursor()
+            today = datetime.now().strftime('%Y-%m-%d')
+
+            # Get earliest start time for each employee today
+            cursor.execute("""
+                SELECT employee_id, MIN(start_time)
+                FROM work_log
+                WHERE date = ?
+                GROUP BY employee_id
+            """, (today,))
+
+            records = cursor.fetchall()
+            conn.close()
+
+            # Map employee_id string back to db_id
+            # We need to reverse lookup from self.employee_labels or query DB
+            emp_id_to_db_id = {}
+            for db_id, data in self.employee_labels.items():
+                emp_id_to_db_id[data['employee_id']] = db_id
+
+            for emp_id, start_time_str in records:
+                if emp_id in emp_id_to_db_id:
+                    db_id = emp_id_to_db_id[emp_id]
+                    try:
+                        dt = datetime.fromisoformat(start_time_str)
+                        self.daily_first_seen[db_id] = dt.timestamp()
+                        print(f"[INFO] Loaded daily start time for {emp_id}: {dt}")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to parse start time {start_time_str}: {e}")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to load today's attendance: {e}")
+
     def _load_deep_learning_model(self):
         """Load deep learning face recognition model if available"""
         try:
@@ -509,8 +550,21 @@ class PersonDetector:
             for db_id, employee_id, first_name, last_name in employees:
                 images_loaded_for_employee = 0
                 for filename in os.listdir(face_images_dir):
-                    # Strict matching: {employee_id}_face_...
+                    is_match = False
+                    # 1. Standard format: {employee_id}_face_...
                     if filename.startswith(f"{employee_id}_face_"):
+                        is_match = True
+                    # 2. Training format: training_{name}_...
+                    elif filename.startswith("training_"):
+                        # robust check: training_Name_...
+                        # We try to match first_name in the filename
+                        if first_name and f"training_{first_name}" in filename:
+                            is_match = True
+                        # Also try matching combined name just in case
+                        elif first_name and last_name and f"training_{first_name}_{last_name}" in filename:
+                            is_match = True
+
+                    if is_match:
                         image_path = os.path.join(face_images_dir, filename)
                         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
                         
@@ -1045,6 +1099,17 @@ class PersonDetector:
                 # Calculate duration
                 duration = time.time() - p_data['first_seen']
 
+                # If person is recognized, use daily persistent duration
+                if employee_info and 'db_id' in employee_info:
+                    db_id = employee_info['db_id']
+
+                    # Ensure we have a start time for today
+                    if db_id not in self.daily_first_seen:
+                        self.daily_first_seen[db_id] = time.time()
+
+                    # Calculate duration since first seen today
+                    duration = time.time() - self.daily_first_seen[db_id]
+
                 # Draw overlay for this person
                 self.draw_person_overlay(display_frame, x1, y1, x2, y2, p_data['confidence'], employee_info, duration=duration)
 
@@ -1060,6 +1125,9 @@ class PersonDetector:
                             employee_info,
                             employee_info['confidence']
                         )
+                        # Ensure daily_first_seen is consistent with DB if it was just inserted
+                        if db_id not in self.daily_first_seen:
+                             self.daily_first_seen[db_id] = now
 
             # --- Process Objects ---
             # detect_objects_in_frame is called inside recognize_person_face -> which updates cache
@@ -1239,9 +1307,13 @@ class PersonDetector:
             # Format duration string
             duration_str = ""
             if duration is not None:
-                minutes = int(duration // 60)
+                hours = int(duration // 3600)
+                minutes = int((duration % 3600) // 60)
                 seconds = int(duration % 60)
-                duration_str = f"Time: {minutes:02d}:{seconds:02d}"
+                if hours > 0:
+                    duration_str = f"Time: {hours:02d}:{minutes:02d}:{seconds:02d}"
+                else:
+                    duration_str = f"Time: {minutes:02d}:{seconds:02d}"
 
             # Activity emoji mapping
             activity_emoji = {

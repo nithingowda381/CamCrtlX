@@ -821,9 +821,12 @@
                                     <button class="btn-glass btn-primary btn-sm w-100 mt-2" onclick="evaluateModel()">
                                         <i class="fas fa-chart-bar me-2"></i>Evaluate Model Performance
                                     </button>
-                                    <button class="btn-glass btn-info btn-sm w-100 mt-2" onclick="trainDeepModel()">
-                                        <i class="fas fa-brain me-2"></i>Train Deep Learning Model
+                                    <button class="btn-glass btn-info btn-sm w-100 mt-2" onclick="retrainModels()">
+                                        <i class="fas fa-brain me-2"></i>Retrain Recognition Models
                                     </button>
+                                    <a href="{{ url_for('dataset_management') }}" class="btn-glass btn-secondary btn-sm w-100 mt-2">
+                                        <i class="fas fa-images me-2"></i>Manage Dataset
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -2367,14 +2370,14 @@
             });
         }
 
-        function trainDeepModel() {
-            if (!confirm('This will retrain the deep learning model using all collected face images. It may take a while. Continue?')) {
+        function retrainModels() {
+            if (!confirm('This will retrain both the standard and deep learning models using all collected face images. It may take a while. Continue?')) {
                 return;
             }
 
-            addToLog('Starting Deep Learning Model Training...');
+            addToLog('Starting Model Retraining...');
 
-            fetch('/api/train_deep_model', {
+            fetch('/api/retrain_models', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2383,17 +2386,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    addToLog('✓ Deep learning model trained successfully!');
+                    addToLog('✓ Models retrained successfully!');
                     alert(data.message);
                 } else {
-                    addToLog(`✗ Training failed: ${data.message}`);
-                    alert('Training failed: ' + data.message);
+                    addToLog(`✗ Retraining failed: ${data.message}`);
+                    alert('Retraining failed: ' + data.message);
                 }
             })
             .catch(error => {
-                console.error('Error during deep learning training:', error);
-                addToLog('✗ Error during training');
-                alert('An error occurred during training.');
+                console.error('Error during model retraining:', error);
+                addToLog('✗ Error during retraining');
+                alert('An error occurred during retraining.');
             });
         }
 

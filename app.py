@@ -30,6 +30,7 @@ from database import DatabaseManager, get_profile_settings, get_user_profile_dat
 from ml_evaluator import MLModelEvaluator
 from train_face_model import DeepFaceTrainer
 import matplotlib
+import glob
 matplotlib.use('Agg')  # Use non-interactive backend
 try:
     from person_detector import PersonDetector
@@ -2050,33 +2051,100 @@ def capture_training_image():
             'message': f'Error capturing training image: {str(e)}'
         })
 
-@app.route('/api/train_deep_model', methods=['POST'])
+@app.route('/api/retrain_models', methods=['POST'])
 @login_required
-def train_deep_model():
-    """Trigger Deep Learning Face Model Training"""
+def retrain_models():
+    """Retrain both LBPH (standard) and Deep Learning models"""
+    results = {'lbph': False, 'deep_learning': False, 'message': ''}
+
+    # 1. Retrain LBPH (Standard)
+    try:
+        detector.load_employee_faces()
+        results['lbph'] = True
+    except Exception as e:
+        print(f"LBPH Training failed: {e}")
+        results['lbph_error'] = str(e)
+
+    # 2. Retrain Deep Learning (if available)
     try:
         trainer = DeepFaceTrainer()
         success = trainer.train_and_save()
-
         if success:
-            # Attempt to reload the deep learning model in the detector if possible
+            results['deep_learning'] = True
             if hasattr(detector, '_load_deep_learning_model'):
                 detector._load_deep_learning_model()
-
-            return jsonify({
-                'success': True,
-                'message': 'Deep learning model trained and saved successfully!'
-            })
         else:
-            return jsonify({
-                'success': False,
-                'message': 'Training failed. Check server logs.'
-            })
+            results['deep_learning_status'] = 'Skipped or Failed (check logs)'
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error triggering training: {str(e)}'
+        print(f"Deep Learning Training failed: {e}")
+        results['deep_learning_error'] = str(e)
+
+    if results['lbph']:
+        msg = "Standard recognition model retrained successfully."
+        if results['deep_learning']:
+            msg += " Deep learning model also updated."
+        else:
+            msg += " Deep learning model skipped (dlib not available)."
+        return jsonify({'success': True, 'message': msg})
+    else:
+        return jsonify({'success': False, 'message': "Failed to train recognition models."})
+
+@app.route('/dataset_management')
+@login_required
+def dataset_management():
+    """Page to manage dataset images"""
+    images = []
+    employees = db.get_all_employees()
+
+    # List all images in static/face_images
+    image_files = glob.glob('static/face_images/*_face_*.jpg') + \
+                  glob.glob('static/face_images/*_face_*.jpeg') + \
+                  glob.glob('static/face_images/*_face_*.png') + \
+                  glob.glob('static/face_images/training_*.jpg')
+
+    for filepath in image_files:
+        filename = os.path.basename(filepath)
+        # Try to parse employee_id from filename
+        # Format usually: {employee_id}_face_{index}.jpg or training_{name}_{timestamp}.jpg
+        employee_id = "Unknown"
+        if '_face_' in filename:
+            employee_id = filename.split('_face_')[0]
+        elif filename.startswith('training_'):
+             # training_Name_timestamp.jpg -> Extract Name
+             parts = filename.split('_')
+             if len(parts) >= 2:
+                 employee_id = parts[1] # Use name as ID for training images
+
+        images.append({
+            'filename': filename,
+            'employee_id': employee_id
         })
+
+    return render_template('dataset_management.html', images=images, employees=employees)
+
+@app.route('/api/delete_training_image', methods=['POST'])
+@login_required
+def delete_training_image():
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        if not filename:
+            return jsonify({'success': False, 'message': 'Filename missing'})
+
+        filepath = os.path.join('static/face_images', secure_filename(filename))
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            return jsonify({'success': True, 'message': 'Image deleted'})
+        else:
+            return jsonify({'success': False, 'message': 'File not found'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/train_deep_model', methods=['POST'])
+@login_required
+def train_deep_model():
+    # Deprecated: alias for retrain_models for backward compatibility
+    return retrain_models()
 
 @app.route('/api/train_model', methods=['POST'])
 @login_required  
